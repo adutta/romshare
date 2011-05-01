@@ -68,5 +68,5 @@ app.post('/', function(req, res, next){
   });
 });
 
-app.listen(3000);
+app.listen(process.env.PORT == null ? 3000 : parseInt(process.env.PORT));
 console.log('Express app started on port 3000');
