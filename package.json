@@ -1,0 +1,10 @@
+{
+  "name":"romshare",
+  "version":"0.0.1",
+  "dependencies":{
+    "express":"",
+    "ejs":"",
+    "jade":"",
+    "connect-form":""
+  }
+}
