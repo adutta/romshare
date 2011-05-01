@@ -64,6 +64,7 @@ app.post('/', function(req, res, next){
     
     var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
     filename = prefix + filename;
+    console.log(filename);
     file.path = filename;
   });
 });
