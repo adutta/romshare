@@ -1,6 +1,7 @@
 // Expose modules in ./support for demo purposes
 require.paths.unshift(__dirname + '/../../support');
 path = require('path');
+fs = require('fs');
 
 /**
  * Module dependencies.
@@ -16,14 +17,44 @@ var app = express.createServer(
   form({ keepExtensions: true })
 );
 
-app.get('/', function(req, res){
-  res.send('<form method="post" enctype="multipart/form-data">'
+var romDir = process.env.HOME + "/roms";
+
+returnNoRoms = function(res) {
+  res.send( { "result": [] });
+}
+
+app.get('/', function(req, res) {
+  var device = req.query['device'];
+  if (device == null) {
+    returnNoRoms(res);
+    return;
+  }
+
+  fs.readdir(romDir + '/' + device, function(err, files) {
+    if (files == null) {
+      returnNoRoms(res);
+      return;
+    }
+    
+    var fileDict = {};
+    for (var file in files) {
+      file = files[file];
+      var stat = fs.statSync(romDir + '/' + device + '/' + file);
+      fileDict[file] = stat;
+    }
+    
+    res.send({ "result": fileDict });
+  });
+});
+
+app.get('/upload', function(req, res){
+  res.send('<form method="post" enctype="multipart/form-data" action="/upload">'
     + '<p>Image: <input type="file" name="image" /></p>'
     + '<p><input type="submit" value="Upload" /></p>'
     + '</form>');
 });
 
-app.post('/', function(req, res, next){
+app.post('/upload', function(req, res, next){
 
   // connect-form adds the req.form object
   // we can (optionally) define onComplete, passing
