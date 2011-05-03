@@ -49,13 +49,17 @@ app.get('/', function(req, res) {
 
 app.get('/upload', function(req, res){
   res.send('<form method="post" enctype="multipart/form-data" action="/upload">'
-    + '<p>Image: <input type="file" name="image" /></p>'
+    + '<p>Name: <input type="text" name="name" /></p>'
+    + '<p>Image: <input type="file" name="rom" /></p>'
     + '<p><input type="submit" value="Upload" /></p>'
     + '</form>');
 });
 
 app.post('/upload', function(req, res, next){
-
+  req.form.parse(req, function(err, fields, files) {
+    console.log(fields);
+      });
+          
   // connect-form adds the req.form object
   // we can (optionally) define onComplete, passing
   // the exception (if any) fields parsed, and files parsed
@@ -65,8 +69,8 @@ app.post('/upload', function(req, res, next){
     } else {
       try {
         console.log('\nuploaded %s to %s'
-                ,  files.image.filename
-                , files.image.path);
+                ,  files.rom.filename
+                , files.rom.path);
       }
       catch (ex) {
       }
