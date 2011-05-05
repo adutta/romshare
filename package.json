@@ -5,6 +5,10 @@
     "express":"",
     "ejs":"",
     "jade":"",
+    "sprintf":"",
+    "openid":"",
+    "cookies":"",
+    "keygrip":"",
     "connect-form":""
   }
 }
