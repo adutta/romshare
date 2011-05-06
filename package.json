@@ -9,6 +9,7 @@
     "openid":"",
     "cookies":"",
     "keygrip":"",
-    "connect-form":""
+    "connect-form":"",
+    "mysql": ""
   }
 }

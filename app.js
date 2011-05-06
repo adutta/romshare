@@ -8,6 +8,25 @@ sprintf = require('sprintf').sprintf;
 querystring = require('querystring');
 cookies = require('cookies');
 keygrip = require('keygrip');
+mysql = new require('mysql').Client();
+
+mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
+mysql.password = process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'nignog' : process.env.DEPLOYFU_MYSQL_PASSWORD;
+mysql.connect();
+
+mysql.query(sprintf('use %s', process.env.DEPLOYFU_MYSQL_DATABASE == null ? 'test' : process.env.DEPLOYFU_MYSQL_DATABASE));
+
+mysql.query('create table if not exists developer (id int primary key not null auto_increment, name varchar(32), developerId varchar(32), icon varchar(256), summary varchar(256), homepage varchar(256))');
+mysql.query('create table if not exists rom ('
+                + "id int primary key not null auto_increment"
+                + ", developerId int, index(developerId)"
+                + ", name varchar(32)"
+                + ", device varchar(32), index(device)"
+                + ", filename varchar(256)"
+                + ", summary varchar(256)"
+                + ", product varchar(32)"
+                + ", incremental varchar(8)"
+                + ", modversion varchar(64))");
 
 var cookieKeys = new keygrip(["oiajsdoijaoijhq398han"]);
 
@@ -29,26 +48,6 @@ ajax = function(urlStr, callback) {
     });
 }
 
-var manifest = null;
-
-loadData = function() {
-  try {
-    eval('manifest = ' + fs.readFileSync('manifest.js'));
-  }
-  catch (err) {
-    manifest = {
-      version: 1,
-      roms: []
-    };
-    saveData();
-  }
-}
-
-saveData = function() {
-  fs.writeFileSync('manifest.js', JSON.stringify(manifest));
-}
-
-loadData();
 
 var express = require('express')
   , form = require('connect-form');
@@ -117,6 +116,73 @@ doLogin = function(req, res) {
   return false;
 }
 
+getManifest = function(req, res) {
+  var query = 'select distinct developer.*, rom.device from rom, developer where rom.developerId = developer.id';
+  var mysqlArgs = [];
+  if (req.params.device) {
+    query += ' and rom.device=? or rom.device="all"';
+    mysqlArgs.push(req.params.device);
+  }
+  var manifest = { minversion: 2000, manifests: [] };
+  developers = {};
+  mysql.query(query, mysqlArgs, function(err, results, fields) {
+    if (err) {
+      res.send(manifest);
+      return;
+    }
+    for (var i in results) {
+      result = results[i];
+      existingResult = developers[result.developerId];
+      if (!existingResult) {
+        result.id = result.developerId;
+        var device = result.device;
+        delete result.developerId;
+        delete result.device;
+        developers[result.id] = result;
+        manifest.manifests.push(result);
+        existingResult = result;
+        existingResult.roms = {}
+        existingResult.roms[device] = true;
+      }
+      else {
+        existingResult.roms[result['device']] = true;
+      }
+    }
+    console.log(manifest);
+    res.send(manifest);
+  });
+}
+
+app.get('/manifest/:device/:developer', function(req, res) {
+  var query = 'select rom.* from rom, developer where developer.id=rom.developerId and rom.device = ? or rom.device= "all"';
+  var manifest = { version: 1, roms: [] };
+  mysql.query(query, [req.params.device], function(err, results, fields) {
+    if (err) {
+      res.send(manifest);
+      return;
+    }
+    for (var i in results) {
+      var rom = results[i];
+      delete rom.id;
+      delete rom.developerId;
+      delete rom.device;
+      rom.url = "http://" + req.headers.host + "/download" + rom.filename;
+      delete rom.filename;
+      manifest.roms.push(rom);
+    }
+    
+    res.send(manifest);
+  });
+});
+
+app.get('/manifest/:device', function(req, res) {
+  getManifest(req, res);
+});
+
+app.get('/manifest', function(req, res) {
+  getManifest(req, res);
+});
+
 // Request an OAuth Request Token, and redirects the user to authorize it
 app.get('/google_login', function(req, res) {
   doLogin(req, res);
@@ -133,9 +199,14 @@ app.get('/google_verify', function(req, res) {
     // - answers from any extensions (e.g. 
     //   "http://axschema.org/contact/email" if requested 
     //   and present at provider)
-    var c = new cookies( req, res, cookieKeys );
-    c.set("email", result["http://axschema.org/contact/email"], {signed: true});
-    res.redirect('/upload');
+    if (result.authenticated) {
+      var c = new cookies( req, res, cookieKeys );
+      c.set("email", result["http://axschema.org/contact/email"], {signed: true});
+      res.redirect('/upload');
+    }
+    else {
+      res.send('bad auth');
+    }
     //res.send((result.authenticated ? 'Success :)' : 'Failure :(') + '\n\n' + JSON.stringify(result));
   });
 });
@@ -181,7 +252,7 @@ app.get('/upload', function(req, res){
     res.send(sprintf("You must <a href='/google_login'>log in.</a>"));
     return;
   }
-  ajax("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js?test=shit",
+  ajax("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js",
     function(data) {
       var devices = data.devices;
       var options = "";
@@ -191,10 +262,14 @@ app.get('/upload', function(req, res){
         options += sprintf('<option value="%s">%s</option>', device.key, device.name)
       }
       res.send('<form method="post" enctype="multipart/form-data" action="/upload">'
-        + '<p>ROM Name: <input type="text" name="name" /></p>'
-        + '<p>Device: <select name="device">' + options + '</select></p>'
-        + '<p>Image: <input type="file" name="rom" /></p>'
-        + '<p><input type="submit" value="Upload" /></p>'
+        + '<div>ROM Name:</div><div><input type="text" name="name" /></div>'
+        + '<div>Device:</div><div><select name="device">' + options + '</select></div>'
+        + '<div>Description:</div><div><textarea name="summary" rows="2" cols="80"> </textarea></div>'
+        + '<div>ro.modversion (optional):</div><div><input type="text" name="modversion" /></div>'
+        + '<div>Product (optional):</div><div><input type="text" name="product" /></div>'
+        + '<div>Version (optional):</div><div><input type="text" name="incremental" /></div>'
+        + '<div>Image:</div><div><input type="file" name="rom" /></div>'
+        + '<div><input type="submit" value="Upload" /></div>'
         + '</form>');
         });
 });
