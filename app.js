@@ -9,12 +9,13 @@ querystring = require('querystring');
 cookies = require('cookies');
 keygrip = require('keygrip');
 mysql = new require('mysql').Client();
+path = require('path');
 
 mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
 mysql.password = process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'nignog' : process.env.DEPLOYFU_MYSQL_PASSWORD;
 mysql.connect();
 
-mysql.query(sprintf('use %s', process.env.DEPLOYFU_MYSQL_DATABASE == null ? 'test' : process.env.DEPLOYFU_MYSQL_DATABASE));
+mysql.query(sprintf('use %s', process.env.DEPLOYFU_MYSQL_DATABASE == null ? 'romshare' : process.env.DEPLOYFU_MYSQL_DATABASE));
 
 mysql.query('create table if not exists developer (id int primary key not null auto_increment, name varchar(32), developerId varchar(32), icon varchar(256), summary varchar(256), homepage varchar(256))');
 mysql.query('create table if not exists rom ('
@@ -28,7 +29,7 @@ mysql.query('create table if not exists rom ('
                 + ", incremental varchar(8)"
                 + ", modversion varchar(64))");
 
-var cookieKeys = new keygrip(["oiajsdoijaoijhq398han"]);
+var cookieKeys = new keygrip([process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'bleepbloopbingblang' : process.env.DEPLOYFU_MYSQL_PASSWORD]);
 
 /**
  * Module dependencies.
@@ -166,7 +167,7 @@ app.get('/manifest/:device/:developer', function(req, res) {
       delete rom.id;
       delete rom.developerId;
       delete rom.device;
-      rom.url = "http://" + req.headers.host + "/download" + rom.filename;
+      rom.url = "http://" + req.headers.host + "/download/" + rom.filename;
       delete rom.filename;
       manifest.roms.push(rom);
     }
@@ -201,8 +202,26 @@ app.get('/google_verify', function(req, res) {
     //   and present at provider)
     if (result.authenticated) {
       var c = new cookies( req, res, cookieKeys );
-      c.set("email", result["http://axschema.org/contact/email"], {signed: true});
-      res.redirect('/upload');
+      var email = result["http://axschema.org/contact/email"].toLowerCase();
+      mysql.query("select id from developer where developerId = ?", [email], function(err, results, fields) {
+        if (err) {
+          res.send('error during lookup of user info.');
+          return;
+        }
+        
+        if (results.length == 0) {
+          mysql.query('insert into developer (name, developerId) values (?, ?)', [email, email], function (err, results, fields) {
+            c.set("email", email, {signed: true});
+            c.set("id", results.id, {signed: true});
+            res.redirect('/upload');
+          });
+        }
+        else {
+          c.set("email", email, {signed: true});
+          c.set("id", results[0].id, {signed: true});
+          res.redirect('/upload');
+        }
+      });
     }
     else {
       res.send('bad auth');
@@ -244,6 +263,7 @@ app.get('/', function(req, res) {
 app.get('/clear', function(req, res){
   var c = new cookies( req, res, cookieKeys );
   email = c.set('email', null, {signed: true});
+  email = c.set('id', null, {signed: true});
   res.send('cookie cleared');
 });
 
@@ -274,23 +294,38 @@ app.get('/upload', function(req, res){
         });
 });
 
-app.post('/upload', function(req, res, next){
-  var romName;
-  var device;
+app.post('/upload', function(req, res, next) {
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  if (email == null) {
+    req.connection.destroy();
+    return;
+  }
+  var requiredProperties = ['name', 'device', 'summary'];
+  var rom = { developerId: developerId };
   req.form.on('field', function(name, value) {
-    if (name == 'name' && value != '') {
-      romName = value;
-    }
-    if (name == 'name' && value != '' && value != 'None') {
-      device = value;
+    if (value != '' && value != null && value != 'None') {
+      rom[name] = value;
     }
   });
+
+  verifyRequiredProperties = function() {
+    for (var prop in requiredProperties) {
+      prop = requiredProperties[prop];
+      //console.log(prop + ": " + rom[prop]);
+      if (rom[prop] == null) {
+        console.log("missing: " + prop);
+        return false;
+      }
+    }
+    return true;
+  }
 
   // connect-form adds the req.form object
   // we can (optionally) define onComplete, passing
   // the exception (if any) fields parsed, and files parsed
   req.form.complete(function(err, fields, files){
-    if (romName == null || device == null)
+    if (!verifyRequiredProperties())
       return;
     if (err) {
       next(err);
@@ -299,15 +334,28 @@ app.post('/upload', function(req, res, next){
         console.log('\nuploaded %s to %s'
                 ,  files.rom.filename
                 , files.rom.path);
+                
+        var columns = [];
+        var actualValues = [];
+        var values = [];
+        for (var column in rom) {
+          columns.push(column);
+          values.push('?');
+          actualValues.push(rom[column]);
+        }
+        columns = columns.join(',');
+        values = values.join(',');
+        var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
+        mysql.query(sqlString, actualValues);
       }
       catch (ex) {
       }
-      res.send("Uploaded " + romName);
+      res.send("Uploaded " + rom.name);
     }
   });
   
   req.form.on('error', function(err){
-    if (romName != null)
+    if (verifyRequiredProperties())
       req.resume();
   });
 
@@ -320,9 +368,10 @@ app.post('/upload', function(req, res, next){
   
   // Adjust where the file is saved.
   req.form.on('fileBegin', function(name, file) {
-    if (romName == null || device == null) {
-      console.log('no name or device provided');
+    if (!verifyRequiredProperties()) {
       req.connection.destroy();
+      res.send('missing required properties');
+      console.log('missing required properties of ' + requiredProperties);
       return;
     }
     console.log('file upload starting');
@@ -336,6 +385,7 @@ app.post('/upload', function(req, res, next){
     filename = prefix + filename;
     console.log(filename);
     file.path = filename;
+    rom.filename = path.basename(filename);
   });
 });
 
