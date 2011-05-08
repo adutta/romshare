@@ -9,8 +9,7 @@ querystring = require('querystring');
 cookies = require('cookies');
 keygrip = require('keygrip');
 mysql = new require('mysql').Client();
-path = require('path');
-
+util = require('util');
 
 mysql.host = process.env.DEPLOYFU_MYSQL_HOST == null ? 'localhost' : process.env.DEPLOYFU_MYSQL_HOST;
 mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
@@ -267,14 +266,14 @@ app.get('/logout', function(req, res){
   res.render('login.jade');
 });
 
-function showRom(req, res, developerId, romId, updated) {
+function showRom(req, res, developerId, romId, status) {
   mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
       if (results.length > 0) {
-        res.render('rom.jade', { rom: results[0], updated: updated })
+        res.render('rom.jade', { rom: results[0], status: status })
       }
       else {
-        res.send("rom not found.");
+        res.send(sprintf("rom not found: %s %s", developerId, romId));
       }
     });
 }
@@ -315,7 +314,7 @@ app.post('/developer/rom/:id', function(req, res) {
   var sqlString = sprintf("update rom set %s where developerId=? and id=?", columns);
   mysql.query(sqlString, actualValues,
     function(err, results, fields) {
-      showRom(req, res, developerId, req.params.id, true);
+      showRom(req, res, developerId, req.params.id, "Updated successfully!");
     });
 });
 
@@ -333,9 +332,23 @@ app.get('/developer/upload', function(req, res){
         device = devices[device];
         options += sprintf('<option value="%s">%s</option>', device.key, device.name)
       }
-      res.render('rom.jade', { devices: devices, rom: {} });
+      res.render('rom.jade', { devices: devices, rom: {}, status: null });
   });
 });
+
+function mkdirP (p, mode, f) {
+    var cb = f || function () {};
+    if (p.charAt(0) != '/') { cb('Relative path: ' + p); return }
+    
+    var ps = path.normalize(p).split('/');
+    path.exists(p, function (exists) {
+        if (exists) cb(null);
+        else mkdirP(ps.slice(0,-1).join('/'), mode, function (err) {
+            if (err && err.errno != process.EEXIST) cb(err)
+            else fs.mkdir(p, mode, cb);
+        });
+    });
+};
 
 app.post('/developer/upload', function(req, res, next) {
   var c = new cookies( req, res, cookieKeys );
@@ -373,7 +386,6 @@ app.post('/developer/upload', function(req, res, next) {
       next(err);
     } else {
       try {
-        console.log(rom);
         console.log('\nuploaded %s to %s'
                 ,  files.rom.filename
                 , files.rom.path);
@@ -391,11 +403,25 @@ app.post('/developer/upload', function(req, res, next) {
         columns = columns.join(',');
         values = values.join(',');
         var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
-        mysql.query(sqlString, actualValues);
+        //console.log(files);
+        mysql.query(sqlString, actualValues, function(err, results, fields) {
+          var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
+          var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
+          showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+          mkdirP(filename, 0700, function(err) {
+            var is = fs.createReadStream(files.rom.path);
+            var os = fs.createWriteStream(filename);
+
+            util.pump(is, os, function() {
+                fs.unlinkSync(files.rom.path);
+            });
+          });
+        });
+        
       }
       catch (ex) {
+        res.send(ex);
       }
-      res.render('uploaded.jade', { rom: rom });
     }
   });
   
@@ -413,24 +439,15 @@ app.post('/developer/upload', function(req, res, next) {
   
   // Adjust where the file is saved.
   req.form.on('fileBegin', function(name, file) {
+    rom.filename = path.basename(file.name);
     if (!verifyRequiredProperties()) {
       req.connection.destroy();
       res.send('missing required properties');
       //console.log('missing required properties of ' + requiredProperties);
       return;
     }
-    console.log('file upload starting');
-    var filename = '';
-    for (var i = 0; i < 32; i++) {
-      filename += Math.floor(Math.random() * 16).toString(16);
-    }
-    filename += path.extname(file.name);
-    
-    var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
-    filename = prefix + filename;
-    console.log(filename);
-    file.path = filename;
-    rom.filename = path.basename(filename);
+    var prefix = process.env.DEPLOYFU_SESSION_HOME == null ? '/tmp/' : process.env.DEPLOYFU_SESSION_HOME + '/';
+    file.path = path.join(prefix, path.basename(file.path));
   });
 });
 

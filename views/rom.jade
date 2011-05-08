@@ -1,7 +1,7 @@
 h1= "ROM Manager Developer Portal"
 h2= "Upload Android Update.zip"
-- if (updated)
-    p(class="status") Updated Succesfully.
+- if (status)
+    p(class="status")= status
 br
 br
 form(method="post", id="upload", enctype=rom.filename ? "application/x-www-form-urlencoded" : "multipart/form-data", action=rom.filename ? "/developer/rom/" + rom.id : "/developer/upload", onsubmit="return validateUploadForm()")
