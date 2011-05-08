@@ -415,7 +415,7 @@ app.post('/developer/upload', function(req, res, next) {
 
             util.pump(is, os, function() {
               console.log("unlinking");
-              fs.unlinkSync(files.rom.path);
+              //fs.unlinkSync(files.rom.path);
             });
           });
         });
