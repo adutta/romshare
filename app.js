@@ -413,20 +413,24 @@ app.post('/developer/upload', function(req, res, next) {
           var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
           console.log(sprintf("%s showing rom now", filename));
-          showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
           mkdirP(filename, 0700, function(err) {
+            console.log('mkdirp');
+            console.log(err);
             var is = fs.createReadStream(files.rom.path);
             var os = fs.createWriteStream(filename);
 
-            util.pump(is, os, function() {
+            util.pump(is, os, function(err) {
               console.log("unlinking");
-              //fs.unlinkSync(files.rom.path);
+              fs.unlinkSync(files.rom.path);
+              showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
             });
           });
         });
         
       }
       catch (ex) {
+        console.log('exception');
+        console.log(ex);
         res.send(ex);
       }
     }
