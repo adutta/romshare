@@ -1,0 +1,48 @@
+h1= "ROM Manager Developer Portal"
+h2= "Upload Android Update.zip"
+- if (updated)
+    p(class="status") Updated Succesfully.
+br
+br
+form(method="post", id="upload", enctype=rom.filename ? "application/x-www-form-urlencoded" : "multipart/form-data", action=rom.filename ? "/developer/rom/" + rom.id : "/developer/upload", onsubmit="return validateUploadForm()")
+    #container Update Name (the friendly name of your ROM, Kernel, or update.zip)
+    #container
+        input(type="text", id="name", name="name", value=rom.name)
+    p
+    #container Device
+    #container
+        - if (!rom.filename)
+            select(name="device", id="device")
+                option(value='none') Please select the target device
+                - each device in devices
+                    option(value=device.key)=device.name
+        - else 
+            b= rom.device
+    p
+    #container Description
+    #container
+        input(type="text", id="summary", name="summary", value=rom.summary)
+    p
+    #container ro.modversion (optional)
+    #container
+        input(type="text", name="modversion", value=rom.modversion)
+    p
+    #container Product (optional)
+    #container
+        input(type="text", name="product", value=rom.product)
+    p
+    #container Version (optional)
+    #container
+        input(type="text", name="incremental", value=rom.incremental)
+    p
+    p
+    - if (!rom.filename)
+        #container update.zip file
+            #container
+                input(type="file", id="file", name="rom", value=rom.filename)
+    - else
+        span Download Link: 
+        a(href=rom.filename)= rom.filename
+    p
+    #container
+        input(type="submit", value=!rom.filename ? "Upload" : "Update")

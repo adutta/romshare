@@ -59,11 +59,26 @@ var express = require('express')
   , form = require('connect-form');
 
 var app = express.createServer(
-  // connect-form (http://github.com/visionmedia/connect-form)
-  // middleware uses the formidable middleware to parse urlencoded
-  // and multipart form data
   form({ keepExtensions: true })
 );
+
+// Configuration
+app.configure(function(){
+  app.set('views', __dirname + '/views');
+  app.set('view engine', 'jade');
+  app.use(express.bodyParser());
+  app.use(express.methodOverride());
+  app.use(app.router);
+  app.use(express.static(__dirname + '/public'));
+});
+
+app.configure('development', function(){
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
+});
+
+app.configure('production', function(){
+  app.use(express.errorHandler()); 
+});
 
 var openid = require("openid");
 
@@ -72,7 +87,8 @@ var relyingParty = null;
 isLoggedIn = function(req, res) {
   var c = new cookies( req, res, cookieKeys );
   email = c.get('email', {signed: true});
-  return email != null;
+  id = c.get('id', {signed: true});
+  return email != null && id != null;
 }
 
 doLogin = function(req, res) {
@@ -190,7 +206,7 @@ app.get('/manifest', function(req, res) {
 });
 
 // Request an OAuth Request Token, and redirects the user to authorize it
-app.get('/google_login', function(req, res) {
+app.get('/login', function(req, res) {
   doLogin(req, res);
 });
 
@@ -218,20 +234,19 @@ app.get('/google_verify', function(req, res) {
           mysql.query('insert into developer (name, developerId) values (?, ?)', [email, email], function (err, results, fields) {
             c.set("email", email, {signed: true});
             c.set("id", results.id, {signed: true});
-            res.redirect('/upload');
+            res.redirect('/developer/upload');
           });
         }
         else {
           c.set("email", email, {signed: true});
           c.set("id", results[0].id, {signed: true});
-          res.redirect('/upload');
+          res.redirect('/developer/upload');
         }
       });
     }
     else {
       res.send('bad auth');
     }
-    //res.send((result.authenticated ? 'Success :)' : 'Failure :(') + '\n\n' + JSON.stringify(result));
   });
 });
 
@@ -242,39 +257,71 @@ returnNoRoms = function(res) {
 }
 
 app.get('/', function(req, res) {
-  var device = req.query['device'];
-  if (device == null) {
-    returnNoRoms(res);
-    return;
-  }
-
-  fs.readdir(romDir + '/' + device, function(err, files) {
-    if (files == null) {
-      returnNoRoms(res);
-      return;
-    }
-    
-    var fileDict = {};
-    for (var file in files) {
-      file = files[file];
-      var stat = fs.statSync(romDir + '/' + device + '/' + file);
-      fileDict[file] = stat;
-    }
-    
-    res.send({ "result": fileDict });
-  });
+  res.render('index.jade', { title: 'foo' });
 });
 
-app.get('/clear', function(req, res){
+app.get('/logout', function(req, res){
   var c = new cookies( req, res, cookieKeys );
   email = c.set('email', null, {signed: true});
   email = c.set('id', null, {signed: true});
-  res.send('cookie cleared');
+  res.render('login.jade');
 });
 
-app.get('/upload', function(req, res){
+function showRom(req, res, developerId, romId, updated) {
+  mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
+    function (err, results, fields) {
+      if (results.length > 0) {
+        res.render('rom.jade', { rom: results[0], updated: updated })
+      }
+      else {
+        res.send("rom not found.");
+      }
+    });
+}
+
+app.get('/developer/rom/:id', function(req, res) {
   if (!isLoggedIn(req, res)) {
-    res.send(sprintf("You must <a href='/google_login'>log in.</a>"));
+    res.redirect('/logout');
+    return;
+  }
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  showRom(req, res, developerId, req.params.id, false);
+});
+
+var requiredProperties = ['name', 'device', 'summary'];
+
+app.post('/developer/rom/:id', function(req, res) {
+  if (!isLoggedIn(req, res)) {
+    res.redirect('/logout');
+    return;
+  }
+  var rom = req.body;
+  delete rom.id;
+  delete rom.developerId;
+
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  var romId = req.params.id;
+  var columns = [];
+  var actualValues = [];
+  for (var column in rom) {
+    columns.push(column + "=?");
+    actualValues.push(rom[column]);
+  }
+  columns = columns.join(',');
+  actualValues.push(developerId);
+  actualValues.push(romId);
+  var sqlString = sprintf("update rom set %s where developerId=? and id=?", columns);
+  mysql.query(sqlString, actualValues,
+    function(err, results, fields) {
+      showRom(req, res, developerId, req.params.id, true);
+    });
+});
+
+app.get('/developer/upload', function(req, res){
+  if (!isLoggedIn(req, res)) {
+    res.redirect('/logout');
     return;
   }
   ajax("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js",
@@ -286,40 +333,30 @@ app.get('/upload', function(req, res){
         device = devices[device];
         options += sprintf('<option value="%s">%s</option>', device.key, device.name)
       }
-      res.send('<form method="post" enctype="multipart/form-data" action="/upload">'
-        + '<div>ROM Name:</div><div><input type="text" name="name" /></div>'
-        + '<div>Device:</div><div><select name="device">' + options + '</select></div>'
-        + '<div>Description:</div><div><textarea name="summary" rows="2" cols="80"> </textarea></div>'
-        + '<div>ro.modversion (optional):</div><div><input type="text" name="modversion" /></div>'
-        + '<div>Product (optional):</div><div><input type="text" name="product" /></div>'
-        + '<div>Version (optional):</div><div><input type="text" name="incremental" /></div>'
-        + '<div>Image:</div><div><input type="file" name="rom" /></div>'
-        + '<div><input type="submit" value="Upload" /></div>'
-        + '</form>');
-        });
+      res.render('rom.jade', { devices: devices, rom: {} });
+  });
 });
 
-app.post('/upload', function(req, res, next) {
+app.post('/developer/upload', function(req, res, next) {
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
-  if (email == null) {
+  var email = c.get('email', {signed: true});
+  if (email == null || developerId == null) {
     req.connection.destroy();
     return;
   }
-  var requiredProperties = ['name', 'device', 'summary'];
-  var rom = { developerId: developerId };
+  var rom = {};
   req.form.on('field', function(name, value) {
     if (value != '' && value != null && value != 'None') {
       rom[name] = value;
+      console.log(name + ": " + value);
     }
   });
 
   verifyRequiredProperties = function() {
     for (var prop in requiredProperties) {
       prop = requiredProperties[prop];
-      //console.log(prop + ": " + rom[prop]);
       if (rom[prop] == null) {
-        console.log("missing: " + prop);
         return false;
       }
     }
@@ -336,10 +373,13 @@ app.post('/upload', function(req, res, next) {
       next(err);
     } else {
       try {
+        console.log(rom);
         console.log('\nuploaded %s to %s'
                 ,  files.rom.filename
                 , files.rom.path);
-                
+
+        delete rom.id;
+        rom.developerId = developerId;
         var columns = [];
         var actualValues = [];
         var values = [];
@@ -355,7 +395,7 @@ app.post('/upload', function(req, res, next) {
       }
       catch (ex) {
       }
-      res.send("Uploaded " + rom.name);
+      res.render('uploaded.jade', { rom: rom });
     }
   });
   
@@ -376,7 +416,7 @@ app.post('/upload', function(req, res, next) {
     if (!verifyRequiredProperties()) {
       req.connection.destroy();
       res.send('missing required properties');
-      console.log('missing required properties of ' + requiredProperties);
+      //console.log('missing required properties of ' + requiredProperties);
       return;
     }
     console.log('file upload starting');
