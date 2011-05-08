@@ -269,8 +269,11 @@ app.get('/logout', function(req, res){
 function showRom(req, res, developerId, romId, status) {
   mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
+      console.log(err);
+      console.log(results);
       if (results.length > 0) {
-        res.render('rom.jade', { rom: results[0], status: status })
+        res.send('ok...');
+        //res.render('rom.jade', { rom: results[0], status: status })
       }
       else {
         res.send(sprintf("rom not found: %s %s", developerId, romId));
