@@ -405,6 +405,7 @@ app.post('/developer/upload', function(req, res, next) {
         var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
         //console.log(files);
         mysql.query(sqlString, actualValues, function(err, results, fields) {
+          console.log(results);
           var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
           console.log(sprintf("%s showing rom now", filename));
