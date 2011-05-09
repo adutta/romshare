@@ -10,6 +10,7 @@ cookies = require('cookies');
 keygrip = require('keygrip');
 mysql = new require('mysql').Client();
 util = require('util');
+exec = require('child_process').exec;
 
 mysql.host = process.env.DEPLOYFU_MYSQL_HOST == null ? 'localhost' : process.env.DEPLOYFU_MYSQL_HOST;
 mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
@@ -571,15 +572,27 @@ app.post('/developer/upload', function(req, res, next) {
         mysql.query(sqlString, actualValues, function(err, results, fields) {
           var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
-          mkdirP(path.dirname(filename), 0700, function(err) {
-            var is = fs.createReadStream(files.rom.path);
-            var os = fs.createWriteStream(filename);
+          
+          exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
+            function (error, stdout, stderr) {
+              if (error) {
+                console.log(stdout);
+                console.log(stderr);
+                delete rom.filename;
+                res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
+              }
+              else {
+                mkdirP(path.dirname(filename), 0700, function(err) {
+                  var is = fs.createReadStream(files.rom.path);
+                  var os = fs.createWriteStream(filename);
 
-            util.pump(is, os, function(err) {
-              fs.unlinkSync(files.rom.path);
-              showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+                  util.pump(is, os, function(err) {
+                    fs.unlinkSync(files.rom.path);
+                    showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+                  });
+                });
+              }
             });
-          });
         });
         
       }

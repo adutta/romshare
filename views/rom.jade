@@ -35,13 +35,14 @@ form(method="post", id="upload", enctype=rom.filename ? "application/x-www-form-
     p
     #container Device
     #container
-        - if (!rom.filename)
+        - if (!rom.device)
             select(name="device", id="device")
                 option(value='none') Please select the target device
                 - each device in devices
                     option(value=device.key)=device.name
         - else 
             b= rom.device
+            input(type='hidden', name='device', id='device', value=rom.device)
     p
     #container Description
     #container
