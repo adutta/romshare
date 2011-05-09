@@ -61,13 +61,13 @@ form(method="post", id="upload", enctype=rom.filename ? "application/x-www-form-
         input(type="text", name="incremental", value=rom.incremental)
     p
     p
-    - if (!rom.filename)
+    - if (!rom.downloadUrl)
         #container update.zip file
             #container
                 input(type="file", id="file", name="rom", value=rom.filename)
     - else
         span Download Link: 
-        a(href=rom.filename)= rom.filename
+        a(href=rom.downloadUrl)= rom.downloadUrl
     p
     #container
         input(type="submit", value=!rom.filename ? "Upload" : "Update")

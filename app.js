@@ -420,7 +420,10 @@ function showRom(req, res, developerId, romId, status) {
   mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
       if (results.length > 0) {
-        res.render('rom.jade', { rom: results[0], statusLine: status });
+        var rom = results[0];
+        rom.downloadUrl = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+        console.log(rom);
+        res.render('rom.jade', { rom: rom, statusLine: status });
       }
       else {
         res.send(sprintf("rom not found: %s %s", developerId, romId));
