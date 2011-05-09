@@ -71,7 +71,7 @@ table
                             input(type="file", id="file", name="rom", value=rom.filename)
                 - else
                     span Download Link: 
-                    a(href=rom.downloadUrl)= rom.downloadUrl
+                    a(href=rom.downloadUrl)= rom.filename
                 p
                 #container
                     input(type="submit", value=!rom.filename ? "Upload" : "Update")

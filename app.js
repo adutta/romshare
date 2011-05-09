@@ -70,7 +70,6 @@ app.configure(function(){
   app.use(express.methodOverride());
   app.use(app.router);
   app.use(express.static(__dirname + '/public'));
-  console.log(__dirname);
 });
 
 app.configure('development', function(){
@@ -423,7 +422,6 @@ function showRom(req, res, developerId, romId, status) {
       if (results.length > 0) {
         var rom = results[0];
         rom.downloadUrl = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
-        console.log(rom);
         res.render('rom.jade', { rom: rom, statusLine: status });
       }
       else {
@@ -450,8 +448,6 @@ app.get('/developer/rom/:id/delete', function(req, res) {
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
   var romId = req.params.id;
-  console.log(developerId);
-  console.log(romId);
   mysql.query('delete from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
       res.redirect('/developer');
@@ -580,8 +576,6 @@ app.post('/developer/upload', function(req, res, next) {
           exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
             function (error, stdout, stderr) {
               if (error) {
-                console.log(stdout);
-                console.log(stderr);
                 delete rom.filename;
                 res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
               }
@@ -592,7 +586,7 @@ app.post('/developer/upload', function(req, res, next) {
 
                   util.pump(is, os, function(err) {
                     fs.unlinkSync(files.rom.path);
-                    showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+                    showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!\nIf this is your first upload, the approval process to add your developer section to ROM Manager may take a few hours.")
                   });
                 });
               }
