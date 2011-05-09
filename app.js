@@ -177,7 +177,7 @@ getManifest = function(req, res) {
 }
 
 app.get('/developer/:developerId/manifest', function(req, res) {
-  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId and rom.device= "all"';
+  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId';
   var manifest = { version: 1, roms: [] };
   mysql.query(query, [req.params.developerId], function(err, results, fields) {
     if (err) {
