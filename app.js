@@ -265,7 +265,7 @@ function getDistributionUrl(req, relativeFilename) {
   return "http://" + req.headers.host + "/downloads/" + relativeFilename;
 }
 
-if (process.env.DEPLOYFU_S3FS_PUBLIC_DIR != null) {
+if (process.env.DEPLOYFU_S3FS_PRIVATE_DIR != null) {
   app.get('/downloads/*', function(req, res) {
     res.redirect(sprintf("http://romshare.clockworkmod.com/downloads" + req.params[0]));
   });
@@ -347,7 +347,7 @@ app.post('/developer/settings', function(req, res, next) {
         var sqlString = sprintf("update developer set %s where id=?", columns);
         mysql.query(sqlString, actualValues, function(err, results, fields) {
           if (files.icon) {
-            var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PUBLIC_DIR;
+            var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
             var filename = path.join(prefix, developerId, developer.icon);
             mkdirP(path.dirname(filename), 0700, function(err) {
               var is = fs.createReadStream(files.icon.path);
@@ -569,7 +569,7 @@ app.post('/developer/upload', function(req, res, next) {
         var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
         //console.log(files);
         mysql.query(sqlString, actualValues, function(err, results, fields) {
-          var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PUBLIC_DIR;
+          var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
           mkdirP(path.dirname(filename), 0700, function(err) {
             var is = fs.createReadStream(files.rom.path);
