@@ -158,6 +158,7 @@ getManifest = function(req, res) {
       if (!existingResult) {
         result.id = result.developerId;
         result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
+        result.icon = getDistributionUrl(req, path.join(result.id, result.icon));
         var device = result.device;
         delete result.developerId;
         delete result.device;
