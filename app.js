@@ -158,6 +158,7 @@ getManifest = function(req, res) {
       existingResult = developers[result.developerId];
       if (!existingResult) {
         result.id = result.developerId;
+        result.manifest = "http://"  + req.params.host + "/developer/" + result.developerId + "/manifest";
         var device = result.device;
         delete result.developerId;
         delete result.device;
