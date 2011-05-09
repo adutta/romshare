@@ -114,6 +114,7 @@ doLogin = function(req, res) {
                         })];
 
   if (!relyingParty) {
+    console.log(req.headers.host);
     relyingParty = new openid.RelyingParty(
         'http://' + req.headers.host + '/google_verify', // Verification URL (yours)
         null, // Realm (optional, specifies realm for OpenID authentication)
@@ -275,7 +276,7 @@ function showRom(req, res, developerId, romId, status) {
       if (results.length > 0) {
         //res.send('ok...');
         try {
-          res.render('rom.jade', { rom: results[0], status: status });
+          res.render('rom.jade', { rom: results[0], statusLine: status });
         }
         catch (ex) {
           console.log(ex);
@@ -342,7 +343,7 @@ app.get('/developer/upload', function(req, res){
         device = devices[device];
         options += sprintf('<option value="%s">%s</option>', device.key, device.name)
       }
-      res.render('rom.jade', { devices: devices, rom: {}, status: null });
+      res.render('rom.jade', { devices: devices, rom: {}, statusLine: null });
   });
 });
 
