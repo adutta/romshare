@@ -157,7 +157,7 @@ getManifest = function(req, res) {
       existingResult = developers[result.developerId];
       if (!existingResult) {
         if (result.icon != null)
-          result.icon = getDistributionUrl(req, path.join(result.id, result.icon));
+          result.icon = getDistributionUrl(req, path.join(result.id.toString(), result.icon));
         else
           delete result.icon;
         result.id = result.developerId;
