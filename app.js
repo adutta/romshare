@@ -147,7 +147,7 @@ getManifest = function(req, res) {
     mysqlArgs.push(req.params.device);
   }
   var manifest = { minversion: 2000, manifests: [] };
-  developers = {};
+  var developers = {};
   mysql.query(query, mysqlArgs, function(err, results, fields) {
     if (err) {
       res.send(manifest);
@@ -161,7 +161,7 @@ getManifest = function(req, res) {
         var device = result.device;
         delete result.developerId;
         delete result.device;
-        delete developer.email;
+        delete result.email;
         developers[result.id] = result;
         manifest.manifests.push(result);
         existingResult = result;
