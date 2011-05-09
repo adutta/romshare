@@ -189,7 +189,6 @@ app.get('/developer/:developerId/manifest', function(req, res) {
       rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
       delete rom.id;
       delete rom.developerId;
-      delete rom.device;
       delete rom.filename;
       manifest.roms.push(rom);
     }
