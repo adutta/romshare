@@ -401,14 +401,14 @@ app.get('/developer', function(req, res) {
   }
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
-  mysql.query('select * from developer where id=? order by id desc', [developerId],
+  mysql.query('select * from developer where id=?', [developerId],
   function(err, devResults, devFields) {
     if (devResults.length == 0) {
       console.log("no reslts");
       res.redirect('/logout');
     }
     else {
-      mysql.query('select * from rom where developerId=?', [developerId],
+      mysql.query('select * from rom where developerId=? order by id desc', [developerId],
         function(err, results, fields) {
             res.render('developer.jade', { roms: results, developerName: devResults[0].name });
           });
