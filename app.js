@@ -185,10 +185,10 @@ app.get('/manifest/:device/:developer', function(req, res) {
     }
     for (var i in results) {
       var rom = results[i];
+      rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
       delete rom.id;
       delete rom.developerId;
       delete rom.device;
-      rom.url = "http://" + req.headers.host + "/download/" + rom.filename;
       delete rom.filename;
       manifest.roms.push(rom);
     }
