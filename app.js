@@ -274,7 +274,12 @@ function showRom(req, res, developerId, romId, status) {
       console.log(status);
       if (results.length > 0) {
         //res.send('ok...');
-        res.render('rom.jade', { rom: results[0], status: status });
+        try {
+          res.render('rom.jade', { rom: results[0], status: status });
+        }
+        catch (ex) {
+          res.send(ex);
+        }
       }
       else {
         res.send(sprintf("rom not found: %s %s", developerId, romId));
