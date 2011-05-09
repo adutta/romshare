@@ -267,7 +267,7 @@ function getDistributionUrl(req, relativeFilename) {
 
 if (process.env.DEPLOYFU_S3FS_PRIVATE_DIR != null) {
   app.get('/downloads/*', function(req, res) {
-    res.redirect(sprintf("http://romshare.clockworkmod.com/downloads" + req.params[0]));
+    res.redirect(sprintf("http://romshare.clockworkmod.com/" + req.params[0]));
   });
 }
 
