@@ -379,7 +379,7 @@ app.post('/developer/settings', function(req, res, next) {
   
   // Adjust where the file is saved.
   req.form.on('fileBegin', function(name, file) {
-    developer.icon = path.basename(file.name);
+    developer.icon = path.basename(file.path);
     if (!verifyRequiredProperties()) {
       req.connection.destroy();
       res.send('missing required properties');
