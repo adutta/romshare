@@ -177,7 +177,7 @@ getManifest = function(req, res) {
 }
 
 app.get('/developer/:developerId/manifest', function(req, res) {
-  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId';
+  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
   var manifest = { version: 1, roms: [] };
   mysql.query(query, [req.params.developerId], function(err, results, fields) {
     if (err) {
@@ -401,7 +401,7 @@ app.get('/developer', function(req, res) {
   }
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
-  mysql.query('select * from developer where id=?', [developerId],
+  mysql.query('select * from developer where id=? order by id desc', [developerId],
   function(err, devResults, devFields) {
     if (devResults.length == 0) {
       console.log("no reslts");
