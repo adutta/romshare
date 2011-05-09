@@ -160,6 +160,7 @@ getManifest = function(req, res) {
         var device = result.device;
         delete result.developerId;
         delete result.device;
+        delete developer.email;
         developers[result.id] = result;
         manifest.manifests.push(result);
         existingResult = result;
@@ -174,10 +175,10 @@ getManifest = function(req, res) {
   });
 }
 
-app.get('/manifest/:device/:developer', function(req, res) {
-  var query = 'select rom.* from rom, developer where developer.id=rom.developerId and rom.device = ? or rom.device= "all"';
+app.get('/developer/:developerId/manifest', function(req, res) {
+  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId and rom.device= "all"';
   var manifest = { version: 1, roms: [] };
-  mysql.query(query, [req.params.device], function(err, results, fields) {
+  mysql.query(query, [req.params.developerId], function(err, results, fields) {
     if (err) {
       res.send(manifest);
       return;
