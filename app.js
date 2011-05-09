@@ -21,7 +21,7 @@ mysql.connect(function(err) {
 
 mysql.query(sprintf('use %s', process.env.DEPLOYFU_MYSQL_DATABASE == null ? 'romshare' : process.env.DEPLOYFU_MYSQL_DATABASE));
 
-mysql.query('create table if not exists developer (id int primary key not null auto_increment, name varchar(32), developerId varchar(32), icon varchar(256), summary varchar(256), homepage varchar(256))');
+mysql.query('create table if not exists developer (id int primary key not null auto_increment, name varchar(32), developerId varchar(32), email varchar(32), icon varchar(256), summary varchar(256))');
 mysql.query('create table if not exists rom ('
                 + "id int primary key not null auto_increment"
                 + ", developerId int, index(developerId)"
@@ -69,6 +69,7 @@ app.configure(function(){
   app.use(express.methodOverride());
   app.use(app.router);
   app.use(express.static(__dirname + '/public'));
+  console.log(__dirname);
 });
 
 app.configure('development', function(){
@@ -114,7 +115,6 @@ doLogin = function(req, res) {
                         })];
 
   if (!relyingParty) {
-    console.log(req.headers.host);
     relyingParty = new openid.RelyingParty(
         'http://' + req.headers.host + '/google_verify', // Verification URL (yours)
         null, // Realm (optional, specifies realm for OpenID authentication)
@@ -170,7 +170,6 @@ getManifest = function(req, res) {
         existingResult.roms[result['device']] = true;
       }
     }
-    console.log(manifest);
     res.send(manifest);
   });
 }
@@ -224,23 +223,18 @@ app.get('/google_verify', function(req, res) {
     if (result.authenticated) {
       var c = new cookies( req, res, cookieKeys );
       var email = result["http://axschema.org/contact/email"].toLowerCase();
-      mysql.query("select id from developer where developerId = ?", [email], function(err, results, fields) {
-        if (err) {
-          res.send('error during lookup of user info.');
-          return;
-        }
-        
+      mysql.query("select id from developer where email = ?", [email], function(err, results, fields) {
         if (results.length == 0) {
-          mysql.query('insert into developer (name, developerId) values (?, ?)', [email, email], function (err, results, fields) {
+          mysql.query('insert into developer (name, developerId, email, summary) values (?, ?, ?, ?)', [email, email, email, email], function (err, results, fields) {
             c.set("email", email, {signed: true});
-            c.set("id", results.id, {signed: true});
-            res.redirect('/developer/upload');
+            c.set("id", results.insertId, {signed: true});
+            res.redirect('/developer');
           });
         }
         else {
           c.set("email", email, {signed: true});
           c.set("id", results[0].id, {signed: true});
-          res.redirect('/developer/upload');
+          res.render('redirect.jade');
         }
       });
     }
@@ -267,21 +261,165 @@ app.get('/logout', function(req, res){
   res.render('login.jade');
 });
 
+function getDistributionUrl(req, relativeFilename) {
+  return "http://" + req.headers.host + "/downloads/" + relativeFilename;
+}
+
+if (process.env.DEPLOYFU_S3FS_PUBLIC_DIR != null) {
+  app.get('/downloads/*', function(req, res) {
+    res.redirect(sprintf("http://romshare.clockworkmod.com/downloads" + req.params[0]));
+  });
+}
+
+function showDeveloperSettings(req, res, developerId, status) {
+  mysql.query("select * from developer where id = ?", [developerId], function(err, results, fields) {
+    if (results.length == 0) {
+      console.log('no results');
+      res.redirect('/logout');
+    }
+    else {
+      developer = results[0];
+      developer.iconUrl = getDistributionUrl(req, path.join(developerId, developer.icon));
+      res.render('settings.jade', { developer: results[0], statusLine: status });
+    }
+  });
+}
+
+app.get('/developer/settings', function(req, res) {
+  if (!isLoggedIn(req, res)) {
+    res.redirect('/logout');
+    return;
+  }
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+
+  showDeveloperSettings(req, res, developerId, null);
+});
+
+var developerRequiredProperties = ['name', 'developerId', 'summary'];
+
+app.post('/developer/settings', function(req, res, next) {
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  var email = c.get('email', {signed: true});
+  if (email == null || developerId == null) {
+    req.connection.destroy();
+    return;
+  }
+  var developer = {};
+  req.form.on('field', function(name, value) {
+    if (value != '' && value != null && value != 'None') {
+      developer[name] = value;
+    }
+  });
+
+  verifyRequiredProperties = function() {
+    for (var prop in developerRequiredProperties) {
+      prop = developerRequiredProperties[prop];
+      if (developer[prop] == null) {
+        console.log('missing ' + prop);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // connect-form adds the req.form object
+  // we can (optionally) define onComplete, passing
+  // the exception (if any) fields parsed, and files parsed
+  req.form.complete(function(err, fields, files){
+    if (!verifyRequiredProperties())
+      return;
+    if (err) {
+      next(err);
+    } else {
+      try {
+        delete developer.id;
+        delete developer.email;
+        var columns = [];
+        var actualValues = [];
+        for (var column in developer) {
+          columns.push(column + "=?");
+          actualValues.push(developer[column]);
+        }
+        columns = columns.join(',');
+        actualValues.push(developerId);
+        var sqlString = sprintf("update developer set %s where id=?", columns);
+        mysql.query(sqlString, actualValues, function(err, results, fields) {
+          if (files.icon) {
+            var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PUBLIC_DIR;
+            var filename = path.join(prefix, developerId, developer.icon);
+            mkdirP(path.dirname(filename), 0700, function(err) {
+              var is = fs.createReadStream(files.icon.path);
+              var os = fs.createWriteStream(filename);
+
+              util.pump(is, os, function(err) {
+                fs.unlinkSync(files.icon.path);
+                showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+              });
+            });
+          }
+          else {
+            showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+          }
+        });
+        
+      }
+      catch (ex) {
+        console.log(ex);
+        res.send(ex);
+      }
+    }
+  });
+  
+  req.form.on('error', function(err){
+    if (verifyRequiredProperties())
+      req.resume();
+  });
+  
+  // Adjust where the file is saved.
+  req.form.on('fileBegin', function(name, file) {
+    developer.icon = path.basename(file.name);
+    if (!verifyRequiredProperties()) {
+      req.connection.destroy();
+      res.send('missing required properties');
+      //console.log('missing required properties of ' + requiredProperties);
+      return;
+    }
+    var prefix = process.env.DEPLOYFU_SESSION_HOME == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_SESSION_HOME;
+    file.path = path.join(prefix, path.basename(file.path));
+  });
+});
+
+
+app.get('/developer', function(req, res) {
+  if (!isLoggedIn(req, res)) {
+    console.log("not logged in");
+    res.redirect('/logout');
+    return;
+  }
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  mysql.query('select * from developer where id=?', [developerId],
+  function(err, devResults, devFields) {
+    if (devResults.length == 0) {
+      console.log("no reslts");
+      res.redirect('/logout');
+    }
+    else {
+      mysql.query('select * from rom where developerId=?', [developerId],
+        function(err, results, fields) {
+            res.render('developer.jade', { roms: results, developerName: devResults[0].name });
+          });
+    }
+  });
+});
+
 function showRom(req, res, developerId, romId, status) {
   mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
-      console.log(err);
-      console.log(results);
-      console.log(status);
       if (results.length > 0) {
-        //res.send('ok...');
-        try {
-          res.render('rom.jade', { rom: results[0], statusLine: status });
-        }
-        catch (ex) {
-          console.log(ex);
-          res.send(ex);
-        }
+        res.render('rom.jade', { rom: results[0], statusLine: status });
       }
       else {
         res.send(sprintf("rom not found: %s %s", developerId, romId));
@@ -297,6 +435,22 @@ app.get('/developer/rom/:id', function(req, res) {
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
   showRom(req, res, developerId, req.params.id, false);
+});
+
+app.get('/developer/rom/:id/delete', function(req, res) {
+  if (!isLoggedIn(req, res)) {
+    res.redirect('/logout');
+    return;
+  }
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  var romId = req.params.id;
+  console.log(developerId);
+  console.log(romId);
+  mysql.query('delete from rom where developerId = ? and id = ?', [developerId, romId], 
+    function (err, results, fields) {
+      res.redirect('/developer');
+    });
 });
 
 var requiredProperties = ['name', 'device', 'summary'];
@@ -373,7 +527,6 @@ app.post('/developer/upload', function(req, res, next) {
   req.form.on('field', function(name, value) {
     if (value != '' && value != null && value != 'None') {
       rom[name] = value;
-      console.log(name + ": " + value);
     }
   });
 
@@ -416,18 +569,13 @@ app.post('/developer/upload', function(req, res, next) {
         var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
         //console.log(files);
         mysql.query(sqlString, actualValues, function(err, results, fields) {
-          console.log(results);
-          var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? '/tmp/' : process.env.DEPLOYFU_S3FS_PUBLIC_DIR + '/';
+          var prefix = process.env.DEPLOYFU_S3FS_PUBLIC_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PUBLIC_DIR;
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
-          console.log(sprintf("%s showing rom now", filename));
-          mkdirP(filename, 0700, function(err) {
-            console.log('mkdirp');
-            console.log(err);
+          mkdirP(path.dirname(filename), 0700, function(err) {
             var is = fs.createReadStream(files.rom.path);
             var os = fs.createWriteStream(filename);
 
             util.pump(is, os, function(err) {
-              console.log("unlinking");
               fs.unlinkSync(files.rom.path);
               showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
             });
@@ -436,7 +584,6 @@ app.post('/developer/upload', function(req, res, next) {
         
       }
       catch (ex) {
-        console.log('exception');
         console.log(ex);
         res.send(ex);
       }
@@ -446,13 +593,6 @@ app.post('/developer/upload', function(req, res, next) {
   req.form.on('error', function(err){
     if (verifyRequiredProperties())
       req.resume();
-  });
-
-  // We can add listeners for several form
-  // events such as "progress"
-  req.form.on('progress', function(bytesReceived, bytesExpected){
-    var percent = (bytesReceived / bytesExpected * 100) | 0;
-    process.stdout.write('Uploading: %' + percent + '\r');
   });
   
   // Adjust where the file is saved.
@@ -464,7 +604,7 @@ app.post('/developer/upload', function(req, res, next) {
       //console.log('missing required properties of ' + requiredProperties);
       return;
     }
-    var prefix = process.env.DEPLOYFU_SESSION_HOME == null ? '/tmp/' : process.env.DEPLOYFU_SESSION_HOME + '/';
+    var prefix = process.env.DEPLOYFU_SESSION_HOME == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_SESSION_HOME;
     file.path = path.join(prefix, path.basename(file.path));
   });
 });

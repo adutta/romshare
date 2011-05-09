@@ -1,0 +1,50 @@
+script
+    function validateDeveloperForm() {
+      var name = $("#name")[0];
+      var developerId = $("#developerId")[0];
+      var summary = $("#summary")[0];
+      if (name.value == null || name.value == "") {
+        alert('Please enter a friendly name for your developer section.');
+        return false;
+      }
+      if (developerId && developerId.value == null || developerId.value == "") {
+        alert('Please provide a unique developer id.');
+        return false;
+      }
+      if (summary.value == null || summary.value == "") {
+        alert('Please provide a description of your developer section.');
+        return false;
+      }
+      return true;
+    }
+h1 ROM Manager Developer Portal
+h2 Developer Settings
+- if (statusLine)
+    p(class="status")= statusLine
+br
+br
+form(method="post", id="upload", enctype="multipart/form-data", action="/developer/settings", onsubmit="return validateDeveloperForm()")
+    #container Developer Name
+    #container
+        input(type="text", id="name", name="name", value=developer.name)
+    p
+    #container Developer ID
+    #container
+        input(type="text", id="developerId", name="developerId", value=developer.developerId)
+    p
+    #container Description
+    #container
+        input(type="text", id="summary", name="summary", value=developer.summary)
+    p
+    p
+    - if (developer.icon)
+        img(src=developer.iconUrl)
+    #container icon file
+        #container
+            input(type="file", id="icon", name="icon", value=developer.icon)
+    p
+    #container
+        input(type="submit", value="Update")
+br
+br
+a(href="/developer") Go Back

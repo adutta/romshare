@@ -1,0 +1,29 @@
+script
+    function confirmDelete(id) {
+        if (confirm("Are you sure you want to delete this rom?")) {
+            window.location = '/developer/rom/' + id + "/delete";
+        }
+    }
+h1 ROM Manager Developer Portal
+h4= "Welcome back " + developerName
+h5 All Update.zip Files
+table
+    - var count = 0
+    - each rom in roms
+        - count++
+        tr
+            td= rom.name
+            td
+                a(href='/developer/rom/' + rom.id) Edit
+            td
+                a(href=rom.filename) Download
+            td
+                a(href='javascript:confirmDelete(' + rom.id + ')') Delete
+- if (count == 0)
+    p(class='status') No ROMs listed. Get started by uploading one!
+br
+br
+#container
+    a(href='/developer/upload') Upload new update.zip package
+#container
+    a(href='/developer/settings') Developer Settings
