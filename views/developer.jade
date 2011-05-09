@@ -6,6 +6,10 @@ script
     }
 h1 ROM Manager Developer Portal
 h4= "Welcome back " + developerName
+#container
+    a(href='/developer/upload') Upload new update.zip package
+    span(style="margin-left:20px")
+    a(href='/developer/settings') Developer Settings
 h5 All Update.zip Files
 table
     - var count = 0
@@ -21,9 +25,3 @@ table
                 a(href='javascript:confirmDelete(' + rom.id + ')') Delete
 - if (count == 0)
     p(class='status') No ROMs listed. Get started by uploading one!
-br
-br
-#container
-    a(href='/developer/upload') Upload new update.zip package
-#container
-    a(href='/developer/settings') Developer Settings

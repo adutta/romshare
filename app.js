@@ -10,6 +10,7 @@ cookies = require('cookies');
 keygrip = require('keygrip');
 mysql = new require('mysql').Client();
 util = require('util');
+exec = require('child_process').exec;
 
 mysql.host = process.env.DEPLOYFU_MYSQL_HOST == null ? 'localhost' : process.env.DEPLOYFU_MYSQL_HOST;
 mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
@@ -185,10 +186,10 @@ app.get('/developer/:developerId/manifest', function(req, res) {
     }
     for (var i in results) {
       var rom = results[i];
+      rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
       delete rom.id;
       delete rom.developerId;
       delete rom.device;
-      rom.url = "http://" + req.headers.host + "/download/" + rom.filename;
       delete rom.filename;
       manifest.roms.push(rom);
     }
@@ -252,7 +253,7 @@ returnNoRoms = function(res) {
 }
 
 app.get('/', function(req, res) {
-  res.render('index.jade', { title: 'foo' });
+  res.redirect('/developer');
 });
 
 app.get('/logout', function(req, res){
@@ -268,7 +269,7 @@ function getDistributionUrl(req, relativeFilename) {
 
 if (process.env.DEPLOYFU_S3FS_PRIVATE_DIR != null) {
   app.get('/downloads/*', function(req, res) {
-    res.redirect(sprintf("http://romshare.clockworkmod.com/downloads" + req.params[0]));
+    res.redirect(sprintf("http://romshare.clockworkmod.com/" + req.params[0]));
   });
 }
 
@@ -380,7 +381,7 @@ app.post('/developer/settings', function(req, res, next) {
   
   // Adjust where the file is saved.
   req.form.on('fileBegin', function(name, file) {
-    developer.icon = path.basename(file.name);
+    developer.icon = path.basename(file.path);
     if (!verifyRequiredProperties()) {
       req.connection.destroy();
       res.send('missing required properties');
@@ -420,7 +421,10 @@ function showRom(req, res, developerId, romId, status) {
   mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
     function (err, results, fields) {
       if (results.length > 0) {
-        res.render('rom.jade', { rom: results[0], statusLine: status });
+        var rom = results[0];
+        rom.downloadUrl = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+        console.log(rom);
+        res.render('rom.jade', { rom: rom, statusLine: status });
       }
       else {
         res.send(sprintf("rom not found: %s %s", developerId, romId));
@@ -572,15 +576,27 @@ app.post('/developer/upload', function(req, res, next) {
         mysql.query(sqlString, actualValues, function(err, results, fields) {
           var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
           var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
-          mkdirP(path.dirname(filename), 0700, function(err) {
-            var is = fs.createReadStream(files.rom.path);
-            var os = fs.createWriteStream(filename);
+          
+          exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
+            function (error, stdout, stderr) {
+              if (error) {
+                console.log(stdout);
+                console.log(stderr);
+                delete rom.filename;
+                res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
+              }
+              else {
+                mkdirP(path.dirname(filename), 0700, function(err) {
+                  var is = fs.createReadStream(files.rom.path);
+                  var os = fs.createWriteStream(filename);
 
-            util.pump(is, os, function(err) {
-              fs.unlinkSync(files.rom.path);
-              showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+                  util.pump(is, os, function(err) {
+                    fs.unlinkSync(files.rom.path);
+                    showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!")
+                  });
+                });
+              }
             });
-          });
         });
         
       }
