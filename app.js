@@ -252,7 +252,7 @@ returnNoRoms = function(res) {
 }
 
 app.get('/', function(req, res) {
-  res.render('index.jade', { title: 'foo' });
+  res.redirect('/developer');
 });
 
 app.get('/logout', function(req, res){
