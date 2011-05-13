@@ -589,7 +589,7 @@ app.post('/developer/upload', function(req, res, next) {
               else {
                 mkdirP(path.dirname(filename), 0700, function(err) {
                   var is = fs.createReadStream(files.rom.path);
-                  var os = fs.createWriteStream(filename);
+                  var os = fs.createWriteStream(filename, { mode: 0600 });
 
                   util.pump(is, os, function(err) {
                     fs.unlinkSync(files.rom.path);
