@@ -273,6 +273,12 @@ function getDistributionUrl(req, relativeFilename) {
   return "http://" + req.headers.host + "/downloads/" + relativeFilename;
 }
 
+app.get('/immediate/*', function(req, res) {
+  res.sendfile(path.join('public/downloads', req.params[0]), function(err) {
+    console.log(err);
+  })
+});
+
 if (process.env.DEPLOYFU_S3FS_PRIVATE_DIR != null) {
   app.get('/downloads/*', function(req, res) {
     res.redirect(sprintf("http://romshare.clockworkmod.com/" + req.params[0]));
@@ -287,7 +293,7 @@ function showDeveloperSettings(req, res, developerId, status) {
     }
     else {
       developer = results[0];
-      developer.iconUrl = getDistributionUrl(req, path.join(developerId, developer.icon));
+      developer.iconUrl = "http://"  + req.headers.host + '/immediate/' + path.join(developerId, developer.icon);//getDistributionUrl(req, path.join(developerId, developer.icon));
       res.render('settings.jade', { developer: results[0], statusLine: status });
     }
   });
