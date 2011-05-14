@@ -274,7 +274,7 @@ function getDistributionUrl(req, relativeFilename) {
 }
 
 app.get('/immediate/*', function(req, res) {
-  res.sendfile(path.join('public/downloads', req.params[0]), function(err) {
+  res.sendfile(path.join(process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? 'public/downloads' : process.env.DEPLOYFU_S3FS_PRIVATE_DIR, req.params[0]), function(err) {
     console.log(err);
   })
 });
