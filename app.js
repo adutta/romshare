@@ -8,31 +8,9 @@ sprintf = require('sprintf').sprintf;
 querystring = require('querystring');
 cookies = require('cookies');
 keygrip = require('keygrip');
-mysql = new require('mysql').Client();
+mysql = require('./model').mysql;
 util = require('util');
 exec = require('child_process').exec;
-
-mysql.host = process.env.DEPLOYFU_MYSQL_HOST == null ? 'localhost' : process.env.DEPLOYFU_MYSQL_HOST;
-mysql.user = process.env.DEPLOYFU_MYSQL_USER == null ? 'root' : process.env.DEPLOYFU_MYSQL_USER;
-mysql.password = process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'nignog' : process.env.DEPLOYFU_MYSQL_PASSWORD;
-mysql.connect(function(err) {
-  if (err)
-    console.log(err);
-});
-
-mysql.query(sprintf('use %s', process.env.DEPLOYFU_MYSQL_DATABASE == null ? 'romshare' : process.env.DEPLOYFU_MYSQL_DATABASE));
-
-mysql.query('create table if not exists developer (id int primary key not null auto_increment, name varchar(32), developerId varchar(32), email varchar(32), icon varchar(256), summary varchar(256))');
-mysql.query('create table if not exists rom ('
-                + "id int primary key not null auto_increment"
-                + ", developerId int, index(developerId)"
-                + ", name varchar(32)"
-                + ", device varchar(32), index(device)"
-                + ", filename varchar(256)"
-                + ", summary varchar(256)"
-                + ", product varchar(32)"
-                + ", incremental varchar(8)"
-                + ", modversion varchar(64))");
 
 var cookieKeys = new keygrip([process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'bleepbloopbingblang' : process.env.DEPLOYFU_MYSQL_PASSWORD]);
 
@@ -194,6 +172,10 @@ app.get('/developer/:developerId/manifest', function(req, res) {
     for (var i in results) {
       var rom = results[i];
       rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+      if (rom.visible != 0)
+        delete rom.visible;
+      else
+        rom.visible = false;
       delete rom.id;
       delete rom.developerId;
       delete rom.filename;
@@ -251,8 +233,6 @@ app.get('/google_verify', function(req, res) {
     }
   });
 });
-
-var romDir = process.env.HOME + "/roms";
 
 returnNoRoms = function(res) {
   res.send( { "result": [] });
@@ -453,6 +433,7 @@ app.get('/developer/rom/:id', function(req, res) {
   showRom(req, res, developerId, req.params.id, false);
 });
 
+/*
 app.get('/developer/rom/:id/delete', function(req, res) {
   if (!isLoggedIn(req, res)) {
     res.redirect('/logout');
@@ -466,6 +447,7 @@ app.get('/developer/rom/:id/delete', function(req, res) {
       res.redirect('/developer');
     });
 });
+*/
 
 var requiredProperties = ['name', 'device', 'summary'];
 

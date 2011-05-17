@@ -48,6 +48,17 @@ table
                         b= rom.device
                         input(type='hidden', name='device', id='device', value=rom.device)
                 p
+                - if (rom.downloadUrl)
+                    #container ROM Manager Visibility (use this to hide older ROMs)
+                    #container
+                        select(name="visible", id="visible")
+                            - if (rom.visible)
+                                option(value="1") Visible
+                                option(value="0") Hidden
+                            - else
+                                option(value="0") Hidden
+                                option(value="1") Visible
+                p
                 #container Description
                 #container
                     input(type="text", id="summary", name="summary", value=rom.summary)
@@ -70,8 +81,9 @@ table
                         #container
                             input(type="file", id="file", name="rom", value=rom.filename)
                 - else
-                    span Download Link: 
-                    a(href=rom.downloadUrl)= rom.filename
+                    #container Download Link:
+                    #container
+                        a(href=rom.downloadUrl)= rom.filename
                 p
                 #container
                     input(type="submit", value=!rom.filename ? "Upload" : "Update")
