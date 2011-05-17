@@ -233,7 +233,7 @@ app.get('/google_verify', function(req, res) {
         else {
           c.set("email", email, {signed: true});
           c.set("id", results[0].id, {signed: true});
-          res.render('redirect.jade');
+          res.redirect('/developer');
         }
       });
     }
