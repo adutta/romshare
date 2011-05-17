@@ -24,7 +24,7 @@ setting.get('model_version', function(version) {
     mysql.query('alter table rom add column (visible boolean default true)')
     version = "2";
   }
-  
+
   setting.set('model_version', version);
 });
 

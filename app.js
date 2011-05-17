@@ -172,6 +172,14 @@ app.get('/developer/:developerId/manifest', function(req, res) {
     for (var i in results) {
       var rom = results[i];
       rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+      if (req.params.developerId == 'atinm') {
+        rom.addons =  [
+          {
+            name: "Google Apps",
+            url: "http://goo-inside.me/gapps/gapps-gb-20110307-signed.zip"
+          }
+          ];
+      }
       if (rom.visible != 0)
         delete rom.visible;
       else
