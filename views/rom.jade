@@ -63,17 +63,27 @@ table
                 #container
                     input(type="text", id="summary", name="summary", value=rom.summary)
                 p
-                #container ro.modversion (optional)
-                #container
-                    input(type="text", name="modversion", value=rom.modversion)
+                - if (rom.downloadUrl)
+                    #container ro.modversion
+                    - if (rom.modversion != null && rom.modversion != '')
+                        #container=rom.modversion
+                    - else
+                        #container(class="error") No modversion found in the build.prop. Automatic OTA updates will not work.
                 p
-                #container Product (optional)
+                - if (rom.downloadUrl)
+                    #container ro.rommanager.developerid
+                    - if (rom.developerIdProp == null || rom.developerIdProp == '')
+                        #container ro.rommanager.developerid not found in build.prop.
+                        #container OTA updates will not work.
+                    - else if (rom.developerIdProp != rom.developerIdString)
+                        #container(class="error") build.prop contains:
+                        #container(class="error")="ro.rommanager.developerid=" + rom.developerIdProp
+                        #container(class="error") But it should be (as according to your settings):
+                        #container(class="error")="ro.rommanager.developerid=" + rom.developerIdString
+                p
+                #container Product (optional, necessary for OTA notifications)
                 #container
                     input(type="text", name="product", value=rom.product)
-                p
-                #container Version (optional)
-                #container
-                    input(type="text", name="incremental", value=rom.incremental)
                 p
                 p
                 - if (!rom.downloadUrl)

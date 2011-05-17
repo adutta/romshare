@@ -184,6 +184,7 @@ app.get('/developer/:developerId/manifest', function(req, res) {
         delete rom.visible;
       else
         rom.visible = false;
+      rom.incremental = rom.id;
       delete rom.id;
       delete rom.developerId;
       delete rom.filename;
@@ -418,8 +419,12 @@ app.get('/developer', function(req, res) {
 });
 
 function showRom(req, res, developerId, romId, status) {
-  mysql.query('select * from rom where developerId = ? and id = ?', [developerId, romId], 
+  mysql.query('select *, developer.developerId as developerIdString from rom, developer where rom.developerId = ? and rom.id = ? and rom.developerId = developer.id', [developerId, romId], 
     function (err, results, fields) {
+      if (err) {
+        res.send(err);
+        return;
+      }
       if (results.length > 0) {
         var rom = results[0];
         rom.downloadUrl = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
@@ -558,44 +563,50 @@ app.post('/developer/upload', function(req, res, next) {
                 ,  files.rom.filename
                 , files.rom.path);
 
-        delete rom.id;
-        rom.developerId = developerId;
-        var columns = [];
-        var actualValues = [];
-        var values = [];
-        for (var column in rom) {
-          columns.push(column);
-          values.push('?');
-          actualValues.push(rom[column]);
-        }
-        columns = columns.join(',');
-        values = values.join(',');
-        var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
-        //console.log(files);
-        mysql.query(sqlString, actualValues, function(err, results, fields) {
-          var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
-          var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
-          
-          exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
-            function (error, stdout, stderr) {
-              if (error) {
-                delete rom.filename;
-                res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
-              }
-              else {
-                mkdirP(path.dirname(filename), 0700, function(err) {
-                  var is = fs.createReadStream(files.rom.path);
-                  var os = fs.createWriteStream(filename, { mode: 0600 });
+        exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
+          function (error, stdout, stderr) {
+            if (error) {
+              delete rom.filename;
+              res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
+              return;
+            }
 
-                  util.pump(is, os, function(err) {
-                    fs.unlinkSync(files.rom.path);
-                    showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!\nIf this is your first upload, the approval process to add your developer section to ROM Manager may take a few hours.")
-                  });
+            delete rom.id;
+            rom.developerId = developerId;
+            var props = stdout.split('\n');
+            if (props.length >= 2) {
+              if (props[0] != "")
+                rom.modversion = props[0];
+              if (props[1] != "")
+                rom.developerIdProp = props[1];
+            }
+            var columns = [];
+            var actualValues = [];
+            var values = [];
+            for (var column in rom) {
+              columns.push(column);
+              values.push('?');
+              actualValues.push(rom[column]);
+            }
+            columns = columns.join(',');
+            values = values.join(',');
+            var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
+            //console.log(files);
+            mysql.query(sqlString, actualValues, function(err, results, fields) {
+              var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
+              var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
+
+              mkdirP(path.dirname(filename), 0700, function(err) {
+                var is = fs.createReadStream(files.rom.path);
+                var os = fs.createWriteStream(filename, { mode: 0600 });
+
+                util.pump(is, os, function(err) {
+                  fs.unlinkSync(files.rom.path);
+                  showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!\nIf this is your first upload, the approval process to add your developer section to ROM Manager may take a few hours.")
                 });
-              }
+              });
             });
-        });
-        
+          });
       }
       catch (ex) {
         console.log(ex);

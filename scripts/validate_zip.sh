@@ -13,9 +13,8 @@ then
 	exit 1
 fi
 
-echo
-echo
-echo $UPDATE_BINARY
-echo $UPDATE_SCRIPT
+MODVERSION=$(unzip -p $1 system/build.prop | grep ro.modversion | head -n 1 | cut -d = -f 2)
+DEVELOPERID=$(unzip -p $1 system/build.prop | grep ro.rommanager.developerid | head -n 1 | cut -d = -f 2)
 
-echo valid zip
+echo $MODVERSION
+echo $DEVELOPERID

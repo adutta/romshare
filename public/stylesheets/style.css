@@ -10,3 +10,7 @@ a {
 p.status {
   color: #00B020;
 }
+
+div.error {
+  color: #DE0000;
+}

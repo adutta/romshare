@@ -19,10 +19,20 @@ setting.get('model_version', function(version) {
                     + ", modversion varchar(64))");
     version = "1";
   }
-  
+
   if (version == "1") {
     mysql.query('alter table rom add column (visible boolean default true)')
     version = "2";
+  }
+
+  if (version == "2") {
+    mysql.query('alter table rom drop column incremental')
+    version = "3";
+  }
+
+  if (version == "3") {
+    mysql.query('alter table rom add column (developerIdProp varchar(32))')
+    version = "4";
   }
 
   setting.set('model_version', version);
