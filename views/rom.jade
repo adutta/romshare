@@ -73,13 +73,15 @@ table
                 - if (rom.downloadUrl)
                     #container ro.rommanager.developerid
                     - if (rom.developerIdProp == null || rom.developerIdProp == '')
-                        #container ro.rommanager.developerid not found in build.prop.
-                        #container OTA updates will not work.
+                        #container(class="error") ro.rommanager.developerid not found in build.prop.
+                        #container(class="error") OTA updates will not work.
                     - else if (rom.developerIdProp != rom.developerIdString)
                         #container(class="error") build.prop contains:
                         #container(class="error")="ro.rommanager.developerid=" + rom.developerIdProp
                         #container(class="error") But it should be (as according to your settings):
                         #container(class="error")="ro.rommanager.developerid=" + rom.developerIdString
+                    - else
+                        #container=rom.developerIdProp
                 p
                 #container Product (optional, necessary for OTA notifications)
                 #container
