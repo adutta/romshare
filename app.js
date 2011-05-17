@@ -563,50 +563,49 @@ app.post('/developer/upload', function(req, res, next) {
                 ,  files.rom.filename
                 , files.rom.path);
 
-        exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path,
-          function (error, stdout, stderr) {
-            if (error) {
-              delete rom.filename;
-              res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
-              return;
-            }
+        exec(process.env.PWD + "/scripts/validate_zip.sh " + files.rom.path, function (error, stdout, stderr) {
+          if (error) {
+            delete rom.filename;
+            res.render('rom.jade', { rom: rom, statusLine: "The provided zip file is invalid." });
+            return;
+          }
 
-            delete rom.id;
-            rom.developerId = developerId;
-            var props = stdout.split('\n');
-            if (props.length >= 2) {
-              if (props[0] != "")
-                rom.modversion = props[0];
-              if (props[1] != "")
-                rom.developerIdProp = props[1];
-            }
-            var columns = [];
-            var actualValues = [];
-            var values = [];
-            for (var column in rom) {
-              columns.push(column);
-              values.push('?');
-              actualValues.push(rom[column]);
-            }
-            columns = columns.join(',');
-            values = values.join(',');
-            var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
-            //console.log(files);
-            mysql.query(sqlString, actualValues, function(err, results, fields) {
-              var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
-              var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
+          delete rom.id;
+          rom.developerId = developerId;
+          var props = stdout.split('\n');
+          if (props.length >= 2) {
+            if (props[0] != "")
+              rom.modversion = props[0];
+            if (props[1] != "")
+              rom.developerIdProp = props[1];
+          }
+          var columns = [];
+          var actualValues = [];
+          var values = [];
+          for (var column in rom) {
+            columns.push(column);
+            values.push('?');
+            actualValues.push(rom[column]);
+          }
+          columns = columns.join(',');
+          values = values.join(',');
+          var sqlString = sprintf("insert into rom (%s) values (%s)", columns, values);
+          //console.log(files);
+          mysql.query(sqlString, actualValues, function(err, results, fields) {
+            var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
+            var filename = path.join(prefix, developerId, results.insertId.toString(), rom.filename);
 
-              mkdirP(path.dirname(filename), 0700, function(err) {
-                var is = fs.createReadStream(files.rom.path);
-                var os = fs.createWriteStream(filename, { mode: 0600 });
+            mkdirP(path.dirname(filename), 0700, function(err) {
+              var is = fs.createReadStream(files.rom.path);
+              var os = fs.createWriteStream(filename, { mode: 0600 });
 
-                util.pump(is, os, function(err) {
-                  fs.unlinkSync(files.rom.path);
-                  showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!\nIf this is your first upload, the approval process to add your developer section to ROM Manager may take a few hours.")
-                });
+              util.pump(is, os, function(err) {
+                fs.unlinkSync(files.rom.path);
+                showRom(req, res, developerId, results.insertId, "Congratulations! You have uploaded your update.zip!\nIf this is your first upload, the approval process to add your developer section to ROM Manager may take a few hours.")
               });
             });
           });
+        });
       }
       catch (ex) {
         console.log(ex);
