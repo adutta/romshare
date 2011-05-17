@@ -419,7 +419,7 @@ app.get('/developer', function(req, res) {
 });
 
 function showRom(req, res, developerId, romId, status) {
-  mysql.query('select *, developer.developerId as developerIdString from rom, developer where rom.developerId = ? and rom.id = ? and rom.developerId = developer.id', [developerId, romId], 
+  mysql.query('select rom.*, developer.developerId as developerIdString from rom, developer where rom.developerId = ? and rom.id = ? and rom.developerId = developer.id', [developerId, romId], 
     function (err, results, fields) {
       if (err) {
         res.send(err);
