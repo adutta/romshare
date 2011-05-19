@@ -412,8 +412,12 @@ app.get('/developer', function(req, res) {
     else {
       mysql.query('select * from rom where developerId=? order by id desc', [developerId],
         function(err, results, fields) {
-            res.render('developer.jade', { roms: results, developerName: devResults[0].name });
-          });
+          for (result in results) {
+            var rom = results[result];
+            rom.downloadUrl = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+          }
+          res.render('developer.jade', { roms: results, developerName: devResults[0].name });
+        });
     }
   });
 });
