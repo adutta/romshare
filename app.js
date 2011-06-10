@@ -147,6 +147,8 @@ getManifest = function(req, res) {
         delete result.developerId;
         delete result.device;
         delete result.email;
+        delete result.donate;
+        delete result.homepage;
         developers[result.id] = result;
         manifest.manifests.push(result);
         existingResult = result;
@@ -162,51 +164,51 @@ getManifest = function(req, res) {
 }
 
 app.get('/developer/:developerId/manifest', function(req, res) {
-  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
+  var query = 'select rom.*,  from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
   var manifest = { version: 1, roms: [] };
-  mysql.query("select screenshot.* from screenshot, developer where developer.developerId=? and screenshot.developerId=developer.id", [req.params.developerId], function(err, results, fields) {
-    console.log(results);
-    console.log(err);
-    var screenshots = {};
-    for (var screenshot in results) {
-      screenshot = results[screenshot];
-      console.log(screenshot);
-      var romShots = screenshots[screenshot.romId];
-      if (romShots == null) {
-        screenshots[screenshot.romId] = romShots = [];
-      }
-      
-      romShots.push(getDistributionUrl(req, path.join(screenshot.developerId.toString(), screenshot.romId.toString(), screenshot.filename)));
+  mysql.query("select * from developer where developerId=?", [req.params.developerId], function(err, results, fields) {
+    if (results) {
+      var dev = results[0];
+      manifest.donate = dev.donate;
+      manifest.homepage = dev.homepage;
     }
-      
-    mysql.query(query, [req.params.developerId], function(err, results, fields) {
-      if (err) {
-        res.send(manifest);
-        return;
-      }
-      for (var i in results) {
-        var rom = results[i];
-        rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
-        if (req.params.developerId == 'atinm') {
-          rom.addons =  [
-            {
-              name: "Google Apps",
-              url: "http://goo-inside.me/gapps/gapps-gb-20110307-signed.zip"
-            }
-            ];
+
+    mysql.query("select screenshot.* from screenshot, developer where developer.developerId=? and screenshot.developerId=developer.id", [req.params.developerId], function(err, results, fields) {
+      console.log(results);
+      console.log(err);
+      var screenshots = {};
+      for (var screenshot in results) {
+        screenshot = results[screenshot];
+        console.log(screenshot);
+        var romShots = screenshots[screenshot.romId];
+        if (romShots == null) {
+          screenshots[screenshot.romId] = romShots = [];
         }
-        if (rom.visible != 0)
-          delete rom.visible;
-        else
-          rom.visible = false;
-        rom.incremental = rom.id;
-        rom.screenshots = screenshots[rom.id];
-        delete rom.id;
-        delete rom.developerId;
-        delete rom.filename;
-        manifest.roms.push(rom);
+      
+        romShots.push(getDistributionUrl(req, path.join(screenshot.developerId.toString(), screenshot.romId.toString(), screenshot.filename)));
       }
-      res.send(manifest);
+
+      mysql.query(query, [req.params.developerId], function(err, results, fields) {
+        if (err) {
+          res.send(manifest);
+          return;
+        }
+        for (var i in results) {
+          var rom = results[i];
+          rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+          if (rom.visible != 0)
+            delete rom.visible;
+          else
+            rom.visible = false;
+          rom.incremental = rom.id;
+          rom.screenshots = screenshots[rom.id];
+          delete rom.id;
+          delete rom.developerId;
+          delete rom.filename;
+          manifest.roms.push(rom);
+        }
+        res.send(manifest);
+      });
     });
   });
 });
