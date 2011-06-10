@@ -1,0 +1,21 @@
+script
+    var hs = {
+        expand: function (element, params, custom) {
+            parent.window.focus(); // to allow keystroke listening
+            return parent.window.hs.expand(element, params, custom);
+        },
+        htmlExpand: function (element, params, custom) {
+            parent.window.focus(); // to allow keystroke listening
+            return parent.window.hs.htmlExpand(element, params, custom);
+        }
+    }
+
+form(method="post", id="upload", enctype="multipart/form-data", action="/developer/rom/" + romId + "/screenshot")
+    - each screenshot in screenshots
+        span
+            a(href=screenshot.url, class="highslide", onclick="return hs.expand(this, {objectType: 'iframe'})")
+                img(src=screenshot.url, class="thumbnail")
+    #container
+        input(type="file", id="screenshot", name="screenshot")
+    #container
+        input(type="submit", value="Upload Screenshot")

@@ -14,3 +14,8 @@ p.status {
 div.error {
   color: #DE0000;
 }
+
+img.thumbnail {
+    max-width: 128px;
+    max-height: 128px;
+}

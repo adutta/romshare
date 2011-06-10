@@ -39,6 +39,15 @@ setting.get('model_version', function(version) {
     mysql.query('alter table developer add column (homepage varchar(256), donate varchar (256))')
     version = "5";
   }
+  
+  if (version == 5) {
+    version = 6;
+  }
+
+  if (version == "6") {
+    mysql.query('create table if not exists screenshot (id int primary key not null auto_increment, filename varchar(256), developerId int, index(developerId), romId int, index(romId))');
+    version = "7";
+  }
 
   setting.set('model_version', version);
 });

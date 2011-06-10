@@ -164,34 +164,50 @@ getManifest = function(req, res) {
 app.get('/developer/:developerId/manifest', function(req, res) {
   var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
   var manifest = { version: 1, roms: [] };
-  mysql.query(query, [req.params.developerId], function(err, results, fields) {
-    if (err) {
-      res.send(manifest);
-      return;
-    }
-    for (var i in results) {
-      var rom = results[i];
-      rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
-      if (req.params.developerId == 'atinm') {
-        rom.addons =  [
-          {
-            name: "Google Apps",
-            url: "http://goo-inside.me/gapps/gapps-gb-20110307-signed.zip"
-          }
-          ];
+  mysql.query("select screenshot.* from screenshot, developer where developer.developerId=? and screenshot.developerId=developer.id", [req.params.developerId], function(err, results, fields) {
+    console.log(results);
+    console.log(err);
+    var screenshots = {};
+    for (var screenshot in results) {
+      screenshot = results[screenshot];
+      console.log(screenshot);
+      var romShots = screenshots[screenshot.romId];
+      if (romShots == null) {
+        screenshots[screenshot.romId] = romShots = [];
       }
-      if (rom.visible != 0)
-        delete rom.visible;
-      else
-        rom.visible = false;
-      rom.incremental = rom.id;
-      delete rom.id;
-      delete rom.developerId;
-      delete rom.filename;
-      manifest.roms.push(rom);
+      
+      romShots.push(getDistributionUrl(req, path.join(screenshot.developerId.toString(), screenshot.romId.toString(), screenshot.filename)));
     }
-    
-    res.send(manifest);
+      
+    mysql.query(query, [req.params.developerId], function(err, results, fields) {
+      if (err) {
+        res.send(manifest);
+        return;
+      }
+      for (var i in results) {
+        var rom = results[i];
+        rom.url = getDistributionUrl(req, path.join(rom.developerId.toString(), rom.id.toString(), rom.filename));
+        if (req.params.developerId == 'atinm') {
+          rom.addons =  [
+            {
+              name: "Google Apps",
+              url: "http://goo-inside.me/gapps/gapps-gb-20110307-signed.zip"
+            }
+            ];
+        }
+        if (rom.visible != 0)
+          delete rom.visible;
+        else
+          rom.visible = false;
+        rom.incremental = rom.id;
+        rom.screenshots = screenshots[rom.id];
+        delete rom.id;
+        delete rom.developerId;
+        delete rom.filename;
+        manifest.roms.push(rom);
+      }
+      res.send(manifest);
+    });
   });
 });
 
@@ -467,6 +483,70 @@ app.get('/developer/rom/:id/delete', function(req, res) {
 */
 
 var requiredProperties = ['name', 'device', 'summary'];
+
+function showScreenshots(req, res, developerId, romId) {
+  mysql.query('select * from screenshot where developerId=? and romId=?', [developerId, romId],
+    function (err, results, fields) {
+      if (err) {
+        res.send(err);
+        return;
+      }
+      for (var screenshot in results) {
+        screenshot = results[screenshot];
+        screenshot.url = "http://"  + req.headers.host + '/immediate/' + path.join(developerId, romId, screenshot.filename);//getDistributionUrl(req, path.join(developerId, developer.icon));
+
+      }
+      res.render('screenshot.jade', { screenshots: results, romId: romId });
+    });
+}
+
+app.get('/developer/rom/:id/screenshot', function(req, res) {
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  var romId = req.params.id;
+  showScreenshots(req, res, developerId, romId);
+});
+
+
+app.post('/developer/rom/:id/screenshot', function(req, res) {
+  var c = new cookies( req, res, cookieKeys );
+  var developerId = c.get('id', {signed: true});
+  var email = c.get('email', {signed: true});
+  if (email == null || developerId == null) {
+    req.connection.destroy();
+    return;
+  }
+  var romId = req.params.id;
+  
+  var screenshotFile = null;
+  // Adjust where the file is saved.
+  req.form.on('fileBegin', function(name, file) {
+    screenshotFile = path.basename(file.path);
+    var prefix = process.env.DEPLOYFU_SESSION_HOME == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_SESSION_HOME;
+    file.path = path.join(prefix, screenshotFile);
+  });
+
+  req.form.complete(function(err, fields, files){
+    formFiles = files;
+    mysql.query("insert into screenshot (filename, developerId, romId) values (?, ?, ?)", [screenshotFile, developerId, romId], function(err, results, fields) {
+      if (err) {
+        res.send(err);
+        return;
+      }
+      var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
+      var filename = path.join(prefix, developerId, romId, screenshotFile);
+      mkdirP(path.dirname(filename), 0700, function(err) {
+        var is = fs.createReadStream(files.screenshot.path);
+        var os = fs.createWriteStream(filename);
+
+        util.pump(is, os, function(err) {
+          fs.unlinkSync(files.screenshot.path);
+          showScreenshots(req, res, developerId, romId);
+        });
+      });
+    });
+  });
+});
 
 app.post('/developer/rom/:id', function(req, res) {
   if (!isLoggedIn(req, res)) {
