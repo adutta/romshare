@@ -35,6 +35,11 @@ setting.get('model_version', function(version) {
     version = "4";
   }
 
+  if (version == "4") {
+    mysql.query('alter table developer add column (homepage varchar(256), donate varchar (256))')
+    version = "5";
+  }
+
   setting.set('model_version', version);
 });
 

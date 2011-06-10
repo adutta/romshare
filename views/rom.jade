@@ -100,7 +100,8 @@ table
                 p
                 #container
                     input(type="submit", value=!rom.filename ? "Upload" : "Update")
-        td
-            img(src="/images/romlegend.jpg")
+        td(valign="top")
+            a(href="/images/romlegend.jpg", class="highslide", onclick="return hs.expand(this)")
+                img(src="/images/romlegend.jpg", height=265, width=160)
 br
 br

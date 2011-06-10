@@ -41,6 +41,16 @@ table
                     input(type="text", id="summary", name="summary", value=developer.summary)
                 p
                 p
+                #container Homepage
+                #container
+                    input(type="text", id="homepage", name="homepage", value=developer.homepage)
+                p
+                p
+                #container Donate Link
+                #container
+                    input(type="text", id="donate", name="donate", value=developer.donate)
+                p
+                p
                 - if (developer.icon)
                     img(src=developer.iconUrl)
                 #container icon file
@@ -49,7 +59,8 @@ table
                 p
                 #container
                     input(type="submit", value="Update")
-        td
-            img(src="/images/developerlegend.jpg")
+        td(valign="top")
+            a(href="/images/developerlegend.jpg", class="highslide", onclick="return hs.expand(this)")
+                img(src="/images/developerlegend.jpg", height=265, width=160)
 br
 br
