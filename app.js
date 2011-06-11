@@ -164,7 +164,7 @@ getManifest = function(req, res) {
 }
 
 app.get('/developer/:developerId/manifest', function(req, res) {
-  var query = 'select rom.*,  from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
+  var query = 'select rom.* from rom, developer where developer.developerId=? and developer.id=rom.developerId order by rom.id desc';
   var manifest = { version: 1, roms: [] };
   mysql.query("select * from developer where developerId=?", [req.params.developerId], function(err, results, fields) {
     if (results) {
