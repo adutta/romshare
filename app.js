@@ -190,7 +190,7 @@ app.get('/developer/:developerId/manifest', function(req, res) {
 
       mysql.query(query, [req.params.developerId], function(err, results, fields) {
         if (err) {
-          res.send(manifest);
+          res.send(err);
           return;
         }
         for (var i in results) {
