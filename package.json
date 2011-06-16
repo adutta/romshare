@@ -11,6 +11,7 @@
     "keygrip":"",
     "jade":"",
     "connect-form":"",
-    "mysql": ""
+    "mysql": "",
+    "hashlib": ""
   }
 }

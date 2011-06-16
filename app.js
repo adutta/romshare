@@ -11,6 +11,7 @@ keygrip = require('keygrip');
 mysql = require('./model').mysql;
 util = require('util');
 exec = require('child_process').exec;
+hashlib = require('hashlib');
 
 var cookieKeys = new keygrip([process.env.DEPLOYFU_MYSQL_PASSWORD == null ? 'bleepbloopbingblang' : process.env.DEPLOYFU_MYSQL_PASSWORD]);
 
@@ -205,6 +206,8 @@ app.get('/developer/:developerId/manifest', function(req, res) {
           delete rom.id;
           delete rom.developerId;
           delete rom.filename;
+          if (!rom.modversion)
+            rom.modversion = hashlib.md5(rom.url);
           manifest.roms.push(rom);
         }
         res.send(manifest);
