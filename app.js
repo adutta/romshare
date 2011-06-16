@@ -118,7 +118,7 @@ doLogin = function(req, res) {
 }
 
 getManifest = function(req, res) {
-  var query = 'select distinct developer.*, rom.device from rom, developer where rom.developerId = developer.id and rom.visible = true';
+  var query = 'select distinct developer.*, rom.device from rom, developer where rom.developerId = developer.id and rom.visible = 1';
   var mysqlArgs = [];
   if (req.params.device) {
     query += ' and rom.device=? or rom.device="all"';
