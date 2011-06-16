@@ -170,8 +170,10 @@ app.get('/developer/:developerId/manifest', function(req, res) {
   mysql.query("select * from developer where developerId=?", [req.params.developerId], function(err, results, fields) {
     if (results) {
       var dev = results[0];
-      manifest.donate = dev.donate;
-      manifest.homepage = dev.homepage;
+      if (dev != null) {
+        manifest.donate = dev.donate;
+        manifest.homepage = dev.homepage;
+      }
     }
 
     mysql.query("select screenshot.* from screenshot, developer where developer.developerId=? and screenshot.developerId=developer.id", [req.params.developerId], function(err, results, fields) {
