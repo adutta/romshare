@@ -208,7 +208,7 @@ app.get('/developer/:developerId/manifest', function(req, res) {
           delete rom.id;
           delete rom.developerId;
           delete rom.filename;
-          if (!rom.modversion)
+          if (!rom.modversion || rom.modversion == '')
             rom.modversion = hashlib.md5(rom.url);
           manifest.roms.push(rom);
         }
