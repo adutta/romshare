@@ -103,7 +103,7 @@ doLogin = function(req, res) {
   }
 
   // Resolve identifier, associate, and build authentication URL
-  relyingParty.authenticate('http://www.google.com/accounts/o8/id', false, function(authUrl)
+  relyingParty.authenticate('http://www.google.com/accounts/o8/id', false, function(error, authUrl)
       {
         if (!authUrl)
         {
@@ -231,7 +231,7 @@ app.get('/login', function(req, res) {
 app.get('/google_verify', function(req, res) {
   // Verify identity assertion
   // NOTE: Passing just the URL is also possible
-  relyingParty.verifyAssertion(req, function(result)
+  relyingParty.verifyAssertion(req, function(error, result)
   {
     // Result contains properties:
     // - authenticated (true/false)
@@ -239,9 +239,9 @@ app.get('/google_verify', function(req, res) {
     // - answers from any extensions (e.g. 
     //   "http://axschema.org/contact/email" if requested 
     //   and present at provider)
-    if (result.authenticated) {
+    if (!error && result.authenticated) {
       var c = new cookies( req, res, cookieKeys );
-      var email = result["http://axschema.org/contact/email"].toLowerCase();
+      var email = result.email.toLowerCase();
       mysql.query("select id from developer where email = ?", [email], function(err, results, fields) {
         if (results.length == 0) {
           mysql.query('insert into developer (name, developerId, email, summary) values (?, ?, ?, ?)', [email, email, email, email], function (err, results, fields) {
