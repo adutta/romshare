@@ -48,6 +48,11 @@ setting.get('model_version', function(version) {
     mysql.query('create table if not exists screenshot (id int primary key not null auto_increment, filename varchar(256), developerId int, index(developerId), romId int, index(romId))');
     version = "7";
   }
+  
+  if (version == "7") {
+      mysql.query('alter table developer add column (visible boolean default true)');
+      version = "8";
+  }
 
   setting.set('model_version', version);
 });

@@ -53,9 +53,23 @@ table
                 p
                 - if (developer.icon)
                     img(src=developer.iconUrl)
-                #container icon file
+                #container Developer Icon
                     #container
                         input(type="file", id="icon", name="icon", value=developer.icon)
+                        p
+                        p
+                        #container ROM Manager Visibility
+                        #container Use this to enable or disable your account. This may take a few hours
+                        #container to refresh.
+                        #container
+                            select(name="visible", id="visible")
+                                - if (developer.visible)
+                                    option(value="1") Visible
+                                    option(value="0") Hidden
+                                - else
+                                    option(value="0") Hidden
+                                    option(value="1") Visible
+                p
                 p
                 #container
                     input(type="submit", value="Update")
