@@ -150,6 +150,9 @@ getManifest = function(req, res) {
         delete result.email;
         delete result.donate;
         delete result.homepage;
+        delete result.visible;
+        if (req.params.device)
+            delete result.roms;
         developers[result.id] = result;
         manifest.manifests.push(result);
         existingResult = result;
