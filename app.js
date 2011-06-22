@@ -146,22 +146,19 @@ getManifest = function(req, res) {
         result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
         var device = result.device;
         delete result.developerId;
-        delete result.device;
         delete result.email;
         delete result.donate;
         delete result.homepage;
         delete result.visible;
-        if (req.params.device)
-            delete result.roms;
         developers[result.id] = result;
         manifest.manifests.push(result);
         existingResult = result;
-        existingResult.roms = {}
-        existingResult.roms[device] = true;
+        if (!req.params.device)
+            existingResult.roms = {}
       }
-      else {
-        existingResult.roms[result['device']] = true;
-      }
+      if (!req.params.device)
+        existingResult.roms[result.device] = true;
+      delete result.device;
     }
     res.send(manifest);
   });
