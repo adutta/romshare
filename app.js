@@ -177,12 +177,9 @@ app.get('/developer/:developerId/manifest', function(req, res) {
     }
 
     mysql.query("select screenshot.* from screenshot, developer where developer.developerId=? and screenshot.developerId=developer.id", [req.params.developerId], function(err, results, fields) {
-      console.log(results);
-      console.log(err);
       var screenshots = {};
       for (var screenshot in results) {
         screenshot = results[screenshot];
-        console.log(screenshot);
         var romShots = screenshots[screenshot.romId];
         if (romShots == null) {
           screenshots[screenshot.romId] = romShots = [];
@@ -429,7 +426,7 @@ app.get('/developer', function(req, res) {
   mysql.query('select * from developer where id=?', [developerId],
   function(err, devResults, devFields) {
     if (devResults.length == 0) {
-      console.log("no reslts");
+      console.log("no results");
       res.redirect('/logout');
     }
     else {
