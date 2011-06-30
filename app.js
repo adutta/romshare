@@ -120,6 +120,7 @@ doLogin = function(req, res) {
 }
 
 getManifest = function(req, res) {
+  res.header('Cache-Control', 'max-age=300');
   var query = 'select distinct developer.*, rom.device from rom, developer where rom.developerId = developer.id and rom.visible = 1 and developer.visible = 1';
   var mysqlArgs = [];
   if (req.params.device) {
@@ -608,7 +609,7 @@ app.get('/developer/upload', function(req, res){
     return;
   }
   ajax("http://gh-pages.clockworkmod.com/ROMManagerManifest/devices.js",
-    function(data) {
+    function(error, data) {
       var devices = data.devices;
       var options = "";
       options += sprintf('<option value="%s">%s</option>', 'None', 'None');
