@@ -53,6 +53,11 @@ setting.get('model_version', function(version) {
       mysql.query('alter table developer add column (visible boolean default true)');
       version = "8";
   }
+  
+  if (version == "8") {
+        mysql.query('alter table developer add column (manifest varchar(256))');
+        version = "9";
+  } 
 
   setting.set('model_version', version);
 });

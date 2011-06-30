@@ -1,3 +1,4 @@
+script!="var developer=" + JSON.stringify(developer)
 script
     function validateDeveloperForm() {
       var name = $("#name")[0];
@@ -17,6 +18,17 @@ script
       }
       return true;
     }
+
+    function enableManUrlBox(isChecked){
+        document.upload.manifest.style.visibility = !isChecked ? "collapse" : "visible";
+        if (!isChecked)
+          document.upload.manifest.value = '';
+    }
+    
+    $(document).ready(function() {
+      enableManUrlBox(developer.manifest != null);
+    });
+
 h1 ROM Manager Developer Portal
 a(href="/developer") Go Back
 h2 Developer Settings
@@ -27,7 +39,7 @@ br
 table
     tr
         td(valign='top')
-            form(method="post", id="upload", enctype="multipart/form-data", action="/developer/settings", onsubmit="return validateDeveloperForm()")
+            form(method="post", name = "upload", id="upload", enctype="multipart/form-data", action="/developer/settings",onsubmit="return validateDeveloperForm()")
                 #container Developer Name
                 #container
                     input(type="text", id="name", name="name", value=developer.name)
@@ -56,19 +68,25 @@ table
                 #container Developer Icon
                     #container
                         input(type="file", id="icon", name="icon", value=developer.icon)
-                        p
-                        p
-                        #container ROM Manager Visibility
-                        #container Use this to enable or disable your account. This may take a few hours
-                        #container to refresh.
-                        #container
-                            select(name="visible", id="visible")
-                                - if (developer.visible)
-                                    option(value="1") Visible
-                                    option(value="0") Hidden
-                                - else
-                                    option(value="0") Hidden
-                                    option(value="1") Visible
+                p
+                p
+                #container Manual Manifest URL (Advanced Developers Only!)
+                    input(type="checkbox", checked = developer.manifest != null, onclick="enableManUrlBox(this.checked)") 
+                #container
+                    input(type="text", id= "manifest", name = "manifest", value = developer.manifest)
+                p
+                p
+                #container ROM Manager Visibility
+                #container Use this to enable or disable your account. This may take a few hours
+                #container to refresh.
+                #container
+                    select(name="visible", id="visible")
+                        - if (developer.visible)
+                            option(value="1") Visible
+                            option(value="0") Hidden
+                        - else
+                            option(value="0") Hidden
+                            option(value="1") Visible
                 p
                 p
                 #container

@@ -143,7 +143,8 @@ getManifest = function(req, res) {
         else
           delete result.icon;
         result.id = result.developerId;
-        result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
+        if (result.manifest == null)
+          result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
         var device = result.device;
         delete result.developerId;
         delete result.email;
@@ -329,7 +330,7 @@ app.post('/developer/settings', function(req, res, next) {
     req.connection.destroy();
     return;
   }
-  var developer = {};
+  var developer = { manifest: null };
   req.form.on('field', function(name, value) {
     if (value != '' && value != null && value != 'None') {
       developer[name] = value;
@@ -369,6 +370,9 @@ app.post('/developer/settings', function(req, res, next) {
         actualValues.push(developerId);
         var sqlString = sprintf("update developer set %s where id=?", columns);
         mysql.query(sqlString, actualValues, function(err, results, fields) {
+          if (err) {
+            console.log(err);
+          }
           if (files.icon) {
             var prefix = process.env.DEPLOYFU_S3FS_PRIVATE_DIR == null ? path.join(process.env.PWD, 'public/downloads') : process.env.DEPLOYFU_S3FS_PRIVATE_DIR;
             var filename = path.join(prefix, developerId, developer.icon);
