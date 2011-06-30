@@ -28,8 +28,10 @@ ajax = function(urlStr, callback) {
         data += chunk;
       });
       res.on('end', function() {
-        callback(eval("stuff = " + data));
+        callback(null, eval("stuff = " + data));
       });
+    }).on('error', function(error){
+      callback(error, null);
     });
 }
 
@@ -295,7 +297,7 @@ if (process.env.DEPLOYFU_S3FS_PRIVATE_DIR != null) {
   });
 }
 
-function showDeveloperSettings(req, res, developerId, status) {
+function showDeveloperSettings(req, res, developerId, status, error) {
   mysql.query("select * from developer where id = ?", [developerId], function(err, results, fields) {
     if (results.length == 0) {
       console.log('no results');
@@ -304,7 +306,7 @@ function showDeveloperSettings(req, res, developerId, status) {
     else {
       developer = results[0];
       developer.iconUrl = "http://"  + req.headers.host + '/immediate/' + path.join(developerId, developer.icon);//getDistributionUrl(req, path.join(developerId, developer.icon));
-      res.render('settings.jade', { developer: results[0], statusLine: status });
+      res.render('settings.jade', { developer: results[0], statusLine: status, errorLine: error });
     }
   });
 }
@@ -317,7 +319,7 @@ app.get('/developer/settings', function(req, res) {
   var c = new cookies( req, res, cookieKeys );
   var developerId = c.get('id', {signed: true});
 
-  showDeveloperSettings(req, res, developerId, null);
+  showDeveloperSettings(req, res, developerId, null, null);
 });
 
 var developerRequiredProperties = ['name', 'developerId', 'summary'];
@@ -369,6 +371,22 @@ app.post('/developer/settings', function(req, res, next) {
         columns = columns.join(',');
         actualValues.push(developerId);
         var sqlString = sprintf("update developer set %s where id=?", columns);
+
+        var manifestCheck = function() {
+          if (!developer.manifest) {
+            showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+            return;
+          }
+          ajax("http://jsonp.deployfu.com/clean/" + encodeURIComponent(developer.manifest), function(e, data){
+            var errMsg = e ? e : (data.error ? data.error : null);
+
+            if(errMsg)
+                showDeveloperSettings(req, res, developerId, "Updated Successfully!", "Warning: Error in manual manifest: " + errMsg);
+            else
+              showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+          });
+        };
+
         mysql.query(sqlString, actualValues, function(err, results, fields) {
           if (err) {
             console.log(err);
@@ -382,12 +400,12 @@ app.post('/developer/settings', function(req, res, next) {
 
               util.pump(is, os, function(err) {
                 fs.unlinkSync(files.icon.path);
-                showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+                manifestCheck();
               });
             });
           }
           else {
-            showDeveloperSettings(req, res, developerId, "Updated Successfully!");
+            manifestCheck();
           }
         });
         

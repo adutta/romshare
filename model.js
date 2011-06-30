@@ -39,7 +39,7 @@ setting.get('model_version', function(version) {
     mysql.query('alter table developer add column (homepage varchar(256), donate varchar (256))')
     version = "5";
   }
-  
+
   if (version == 5) {
     version = 6;
   }
@@ -48,12 +48,12 @@ setting.get('model_version', function(version) {
     mysql.query('create table if not exists screenshot (id int primary key not null auto_increment, filename varchar(256), developerId int, index(developerId), romId int, index(romId))');
     version = "7";
   }
-  
+
   if (version == "7") {
       mysql.query('alter table developer add column (visible boolean default true)');
       version = "8";
   }
-  
+
   if (version == "8") {
         mysql.query('alter table developer add column (manifest varchar(256))');
         version = "9";

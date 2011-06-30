@@ -11,6 +11,10 @@ p.status {
   color: #00B020;
 }
 
+p.warning{
+  color: #FF0000;
+}
+
 div.error {
   color: #DE0000;
 }

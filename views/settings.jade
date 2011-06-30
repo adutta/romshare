@@ -24,7 +24,7 @@ script
         if (!isChecked)
           document.upload.manifest.value = '';
     }
-    
+
     $(document).ready(function() {
       enableManUrlBox(developer.manifest != null);
     });
@@ -34,6 +34,8 @@ a(href="/developer") Go Back
 h2 Developer Settings
 - if (statusLine)
     p(class="status")= statusLine
+- if (errorLine)
+    p(class="warning")= errorLine
 br
 br
 table
