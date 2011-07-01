@@ -134,37 +134,65 @@ getManifest = function(req, res) {
       res.send(manifest);
       return;
     }
-    for (var i in results) {
-      result = results[i];
-      existingResult = developers[result.developerId];
-      if (!existingResult) {
-        result.developer = result.name;
-        result.free = true;
-        delete result.name;
-        if (result.icon != null)
-          result.icon = getDistributionUrl(req, path.join(result.id.toString(), result.icon));
-        else
-          delete result.icon;
-        result.id = result.developerId;
-        if (result.manifest == null)
-          result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
-        var device = result.device;
-        delete result.developerId;
-        delete result.email;
-        delete result.donate;
-        delete result.homepage;
-        delete result.visible;
-        developers[result.id] = result;
-        manifest.manifests.push(result);
-        existingResult = result;
-        if (!req.params.device)
-            existingResult.roms = {}
+    console.log(results);
+
+    var validResults = [];
+    var callbackCount = 0;
+    var manualCount = 0;
+    for (var j in results) {
+      if(!results[j].manifest){
+        console.log(results[j]);
+        validResults.push(results[j]);
       }
-      if (!req.params.device)
-        existingResult.roms[result.device] = true;
-      delete result.device;
+      else {
+        manualCount++;
+        ajax("http://jsonp.deployfu.com/clean/"+encodeURIComponent(results[j].manifest), function(e, data){
+          callbackCount++;
+          var errMsg = e ? e : (data.error ? data.error : null);
+          if(!errMsg) {
+            console.log(validResults);
+            console.log(results[j]);
+            validResults.push(results[j]);
+          }
+
+          if (callbackCount == manualCount) {
+            console.log(validResults);
+            for (var i in validResults) {
+              var result = validResults[i];
+              console.log(result);
+              existingResult = developers[result.developerId];
+              if (!existingResult) {
+                result.developer = result.name;
+                result.free = true;
+                delete result.name;
+                if (result.icon != null)
+                  result.icon = getDistributionUrl(req, path.join(result.id.toString(), result.icon));
+                else
+                  delete result.icon;
+                result.id = result.developerId;
+                if (result.manifest == null)
+                  result.manifest = "http://"  + req.headers.host + "/developer/" + result.developerId + "/manifest";
+                var device = result.device;
+                delete result.developerId;
+                delete result.email;
+                delete result.donate;
+                delete result.homepage;
+                delete result.visible;
+                developers[result.id] = result;
+                manifest.manifests.push(result);
+                existingResult = result;
+                if (!req.params.device)
+                    existingResult.roms = {}
+              }
+              if (!req.params.device)
+                existingResult.roms[result.device] = true;
+              delete result.device;
+            }
+            res.send(manifest);
+          }
+        });
+      }
     }
-    res.send(manifest);
   });
 }
 
